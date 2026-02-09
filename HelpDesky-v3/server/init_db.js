@@ -1,73 +1,75 @@
-const sqlite3 = require('sqlite3').verbose();
+const pool = require('./db');
 const bcrypt = require('bcrypt');
 
-const db = new sqlite3.Database('./helpdesk.db', (err) => {
-  if (err) {
-    console.error('Error opening database', err);
-  } else {
-    console.log('Connected to the SQLite database.');
-    initTables();
-  }
-});
+async function initTables() {
+  try {
+    const client = await pool.connect();
+    console.log('Connected to PostgreSQL database.');
 
-function initTables() {
-  db.serialize(() => {
-    // Users Table
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('ADMIN', 'AGENT')),
-      name TEXT NOT NULL
-    )`);
+    try {
+      await client.query('BEGIN');
 
-    // Tickets Table
-    db.run(`CREATE TABLE IF NOT EXISTS tickets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      caller_name TEXT NOT NULL,
-      department TEXT NOT NULL,
-      phone TEXT,
-      description TEXT NOT NULL,
-      priority TEXT NOT NULL CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH')),
-      status TEXT NOT NULL CHECK(status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')),
-      assignee_id INTEGER,
-      resolution_note TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      closed_at DATETIME,
-      FOREIGN KEY (assignee_id) REFERENCES users (id)
-    )`);
+      // Users Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          role VARCHAR(50) NOT NULL CHECK(role IN ('ADMIN', 'AGENT')),
+          name VARCHAR(255) NOT NULL
+        )
+      `);
 
-    // Seed Admin User
-    const adminUsername = 'admin';
-    const adminPassword = 'password123'; // In production, use strong password
-    const adminRole = 'ADMIN';
-    const adminName = 'System Admin';
+      // Tickets Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS tickets (
+          id SERIAL PRIMARY KEY,
+          caller_name VARCHAR(255) NOT NULL,
+          department VARCHAR(255) NOT NULL,
+          phone VARCHAR(255),
+          description TEXT NOT NULL,
+          priority VARCHAR(50) NOT NULL CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH')),
+          status VARCHAR(50) NOT NULL CHECK(status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')),
+          assignee_id INTEGER REFERENCES users(id),
+          resolution_note TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          closed_at TIMESTAMP
+        )
+      `);
 
-    db.get("SELECT id FROM users WHERE username = ?", [adminUsername], (err, row) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
-      if (!row) {
-        bcrypt.hash(adminPassword, 10, (err, hash) => {
-          if (err) {
-            console.error(err);
-            return;
-          }
-          db.run("INSERT INTO users (username, password, role, name) VALUES (?, ?, ?, ?)", 
-            [adminUsername, hash, adminRole, adminName], 
-            (err) => {
-              if (err) console.error(err);
-              else console.log('Admin user seeded.');
-            });
-        });
+      // Seed Admin User
+      const adminUsername = 'admin';
+      const adminPassword = 'password123';
+      const adminRole = 'ADMIN';
+      const adminName = 'System Admin';
+
+      const res = await client.query("SELECT id FROM users WHERE username = $1", [adminUsername]);
+      
+      if (res.rows.length === 0) {
+        const hash = await bcrypt.hash(adminPassword, 10);
+        await client.query(
+          "INSERT INTO users (username, password, role, name) VALUES ($1, $2, $3, $4)",
+          [adminUsername, hash, adminRole, adminName]
+        );
+        console.log('Admin user seeded.');
       } else {
         console.log('Admin user already exists.');
       }
-    });
 
-  });
+      await client.query('COMMIT');
+      console.log('Tables initialized successfully.');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error initializing database:', err);
+  } finally {
+    await pool.end();
+  }
 }
 
-module.exports = db;
+initTables();
