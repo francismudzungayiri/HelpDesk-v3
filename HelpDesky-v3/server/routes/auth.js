@@ -37,8 +37,15 @@ router.post('/login', async (req, res) => {
 });
 
 // Verify Token (Me)
-router.get('/me', authenticateToken, (req, res) => {
-  res.json(req.user);
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, username, role, name FROM users WHERE id = $1", [req.user.id]);
+    const user = result.rows[0];
+    if (!user) return res.sendStatus(404);
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

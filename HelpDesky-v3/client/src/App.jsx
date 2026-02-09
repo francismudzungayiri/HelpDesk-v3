@@ -7,6 +7,7 @@ import CreateTicket from './pages/CreateTicket';
 import TicketList from './pages/TicketList';
 import TicketDetail from './pages/TicketDetail';
 import AdminDashboard from './pages/AdminDashboard';
+import Reports from './pages/Reports';
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -16,12 +17,12 @@ const ProtectedRoute = () => {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <>
+    <div style={{ display: 'flex' }}>
       <NavBar />
-      <div className="container">
+      <div className="container" style={{ marginLeft: '240px', width: '100%', padding: '40px' }}>
         <Outlet />
       </div>
-    </>
+    </div>
   );
 };
 
@@ -37,6 +38,7 @@ function App() {
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/reports" element={<Reports />} />
           </Route>
         </Routes>
       </AuthProvider>
