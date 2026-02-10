@@ -38,6 +38,17 @@ async function initTables() {
         )
       `);
 
+      // Ticket Notes Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS ticket_notes (
+          id SERIAL PRIMARY KEY,
+          ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+          user_id INTEGER REFERENCES users(id),
+          note TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // Seed Admin User
       const adminUsername = 'admin';
       const adminPassword = 'password123';

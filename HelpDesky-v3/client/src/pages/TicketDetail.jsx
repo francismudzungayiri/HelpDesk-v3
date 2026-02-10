@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
+import Avatar from '../components/Avatar';
+import { timeAgo } from '../utils/dateUtils';
 
 const TicketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState(null);
   const [users, setUsers] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -14,6 +17,10 @@ const TicketDetail = () => {
   const [status, setStatus] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [resolutionNote, setResolutionNote] = useState('');
+  
+  // Note Form
+  const [newNote, setNewNote] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -21,20 +28,33 @@ const TicketDetail = () => {
 
   const fetchData = async () => {
     try {
-      const [ticketRes, usersRes] = await Promise.all([
-        api.get(`/tickets/${id}`),
-        api.get('/users')
-      ]);
-      const t = ticketRes.data;
-      setTicket(t);
-      setUsers(usersRes.data);
+      // 1. Fetch Ticket (Critical)
+      const ticketRes = await api.get(`/tickets/${id}`);
+      setTicket(ticketRes.data);
       
       // Init form state
-      setStatus(t.status);
-      setAssigneeId(t.assignee_id || '');
-      setResolutionNote(t.resolution_note || '');
+      setStatus(ticketRes.data.status);
+      setAssigneeId(ticketRes.data.assignee_id || '');
+      setResolutionNote(ticketRes.data.resolution_note || '');
+
+      // 2. Fetch Users (Critical for assignment, but maybe opt?)
+      try {
+        const usersRes = await api.get('/users');
+        setUsers(usersRes.data);
+      } catch (e) {
+        console.error('Failed to load users', e);
+      }
+
+      // 3. Fetch Notes (Non-critical)
+      try {
+        const notesRes = await api.get(`/tickets/${id}/notes`);
+        setNotes(notesRes.data);
+      } catch (e) {
+        console.error('Failed to load notes', e);
+      }
+
     } catch (err) {
-      console.error('Error fetching data', err);
+      console.error('Error fetching ticket', err);
     } finally {
       setLoading(false);
     }
@@ -57,6 +77,24 @@ const TicketDetail = () => {
     }
   };
 
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!newNote.trim()) return;
+    setAddingNote(true);
+    try {
+      await api.post(`/tickets/${id}/notes`, { note: newNote });
+      setNewNote('');
+      // Refresh notes only (opt) or full data
+      const res = await api.get(`/tickets/${id}/notes`);
+      setNotes(res.data);
+    } catch (err) {
+      console.error('Failed to add note:', err.response?.data || err.message);
+      alert(`Failed to add note: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
   if (loading) return <div>Loading details...</div>;
   if (!ticket) return <div>Ticket not found</div>;
 
@@ -67,9 +105,9 @@ const TicketDetail = () => {
       </div>
 
       <div className="flex gap-2" style={{ alignItems: 'flex-start' }}>
-        {/* Left Column: Ticket Info */}
+        {/* Left Column: Ticket Info & Notes */}
         <div style={{ flex: 2 }}>
-          <div className="card">
+          <div className="card" style={{ marginBottom: '20px' }}>
             <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
               <h2 style={{ margin: 0 }}>Ticket #{ticket.id}</h2>
               <span className={`badge priority-${ticket.priority}`} style={{ fontSize: '14px', padding: '4px 8px' }}>
@@ -91,6 +129,47 @@ const TicketDetail = () => {
             <div style={{ fontSize: '12px', color: '#6b778c', borderTop: '1px solid #dfe1e6', paddingTop: '15px' }}>
               Created: {new Date(ticket.created_at).toLocaleString()}
               {ticket.updated_at !== ticket.created_at && <span> • Updated: {new Date(ticket.updated_at).toLocaleString()}</span>}
+            </div>
+          </div>
+
+          {/* Documentation / Activity / Notes */}
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Internal Notes & Work Log</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              {notes.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No notes yet.</div>}
+              {notes.map(note => (
+                <div key={note.id} style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                  <Avatar name={note.user_name} size={32} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{note.user_name}</span>
+                      <span style={{ color: '#6b778c', fontSize: '12px' }}>{timeAgo(note.created_at)}</span>
+                    </div>
+                    <div style={{ background: '#f4f5f7', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+                      {note.note}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <textarea 
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add an internal note or documentation..."
+                rows="2"
+                style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dfe1e6' }}
+              />
+              <button 
+                onClick={handleAddNote} 
+                className="btn-secondary"
+                disabled={addingNote || !newNote.trim()}
+                style={{ height: 'fit-content' }}
+              >
+                {addingNote ? 'Add Note' : 'Add Note'}
+              </button>
             </div>
           </div>
         </div>
@@ -127,7 +206,7 @@ const TicketDetail = () => {
             </div>
 
             <div className="form-group">
-              <label>Resolution Note</label>
+              <label>Final Resolution</label>
               <textarea
                 value={resolutionNote}
                 onChange={(e) => setResolutionNote(e.target.value)}

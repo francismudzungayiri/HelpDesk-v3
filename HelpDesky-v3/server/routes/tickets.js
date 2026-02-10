@@ -140,4 +140,48 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/tickets/:id/notes - Get notes for a ticket
+router.get('/:id/notes', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT n.*, u.name as user_name, u.username as user_username
+      FROM ticket_notes n
+      LEFT JOIN users u ON n.user_id = u.id
+      WHERE n.ticket_id = $1
+      ORDER BY n.created_at DESC
+    `, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/tickets/:id/notes - Add a note to a ticket
+router.post('/:id/notes', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const userId = req.user.id;
+
+  if (!note) return res.status(400).json({ message: 'Note content is required' });
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO ticket_notes (ticket_id, user_id, note) VALUES ($1, $2, $3) RETURNING *",
+      [id, userId, note]
+    );
+    
+    // Fetch user details for immediate display
+    const noteWithUser = {
+      ...result.rows[0],
+      user_name: req.user.name || req.user.username, // Fallback if name not in token (should be there now)
+      user_username: req.user.username
+    };
+
+    res.status(201).json(noteWithUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
