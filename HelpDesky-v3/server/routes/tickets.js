@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   const { status, sort, assignee_id } = req.query;
   let sql = `
-    SELECT t.*, u.name as assignee_name 
+    SELECT t.*, u.name as assignee_name, u.username as assignee_username
     FROM tickets t 
     LEFT JOIN users u ON t.assignee_id = u.id 
     WHERE 1=1
@@ -52,7 +52,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/tickets/:id - Get single ticket details
 router.get('/:id', authenticateToken, async (req, res) => {
   const sql = `
-    SELECT t.*, u.name as assignee_name 
+    SELECT t.*, u.name as assignee_name, u.username as assignee_username
     FROM tickets t 
     LEFT JOIN users u ON t.assignee_id = u.id 
     WHERE t.id = $1
