@@ -51,6 +51,7 @@ const NavBar = () => {
               Admin
             </div>
             <Link to="/admin" style={linkStyle('/admin')}>Dashboard</Link>
+            <Link to="/users" style={linkStyle('/users')}>Users</Link>
             <Link to="/reports" style={linkStyle('/reports')}>Reports</Link>
           </div>
         )}

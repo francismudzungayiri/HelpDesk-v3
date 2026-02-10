@@ -8,6 +8,7 @@ import TicketList from './pages/TicketList';
 import TicketDetail from './pages/TicketDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Reports from './pages/Reports';
+import UserList from './pages/UserList';
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -38,6 +39,7 @@ function App() {
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/users" element={<UserList />} />
             <Route path="/reports" element={<Reports />} />
           </Route>
         </Routes>

@@ -13,6 +13,10 @@ router.get('/', authenticateToken, authorizeRole('ADMIN'), (req, res) => {
       const openTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE status = 'OPEN'");
       stats.total_open = parseInt(openTicketsRes.rows[0].count);
 
+      // 2. Total Users
+      const usersRes = await pool.query("SELECT COUNT(*) as count FROM users");
+      stats.total_users = parseInt(usersRes.rows[0].count);
+
       // 2. Staff Workload (Active Tickets assigned)
       const sql = `
         SELECT u.name, 
