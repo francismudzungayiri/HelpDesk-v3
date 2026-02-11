@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import TicketTable from '../components/TicketTable';
+import toast from 'react-hot-toast';
 
 const TicketList = () => {
   const [tickets, setTickets] = useState([]);
@@ -9,20 +10,27 @@ const TicketList = () => {
   const [filter, setFilter] = useState('OPEN'); // Default to OPEN
 
   useEffect(() => {
-    fetchTickets();
-  }, [filter]);
+    let active = true;
 
-  const fetchTickets = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/tickets?status=${filter}`);
-      setTickets(res.data);
-    } catch (err) {
-      console.error('Failed to fetch tickets', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const run = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/tickets?status=${filter}`);
+        if (active) setTickets(res.data);
+      } catch (err) {
+        console.error('Failed to fetch tickets', err);
+        toast.error('Failed to fetch tickets');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      active = false;
+    };
+  }, [filter]);
 
   return (
     <div>

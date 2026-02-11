@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const NavBar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -20,7 +21,7 @@ const NavBar = () => {
   });
 
   return (
-    <nav style={{ 
+    <nav className="app-sidebar" style={{ 
       width: '240px', 
       height: '100vh', 
       background: '#fff', 
@@ -33,7 +34,10 @@ const NavBar = () => {
       top: 0
     }}>
       <div style={{ marginBottom: '30px', padding: '0 10px' }}>
-        <Link to="/" style={{ fontWeight: 'bold', fontSize: '20px', color: '#0052cc', textDecoration: 'none' }}>
+        <Link
+          to={user.role === 'END_USER' ? '/portal' : '/'}
+          style={{ fontWeight: 'bold', fontSize: '20px', color: '#0052cc', textDecoration: 'none' }}
+        >
           HelpDesky
         </Link>
       </div>
@@ -61,7 +65,8 @@ const NavBar = () => {
                   Admin
                 </div>
                 <Link to="/admin" style={linkStyle('/admin')}>Dashboard</Link>
-                <Link to="/users" style={linkStyle('/users')}>Users</Link>
+                <Link to="/users" style={linkStyle('/users')}>Staff</Link>
+                <Link to="/end-users" style={linkStyle('/end-users')}>End Users</Link>
                 <Link to="/reports" style={linkStyle('/reports')}>Reports</Link>
               </div>
             )}
@@ -80,7 +85,10 @@ const NavBar = () => {
           </div>
         </div>
         <button 
-          onClick={logout} 
+          onClick={() => {
+            logout();
+            navigate('/login', { replace: true });
+          }}
           className="btn-secondary" 
           style={{ width: '100%', textAlign: 'center' }}
         >

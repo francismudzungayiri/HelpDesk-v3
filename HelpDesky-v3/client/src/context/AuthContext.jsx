@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../api';
 
@@ -5,30 +6,38 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
-    // Check if token exists on load
     const token = localStorage.getItem('token');
-    if (token) {
-      api.get('/auth/me')
-        .then(res => {
-          setUser(res.data);
-          setLoading(false);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+    if (!token) return;
+
+    let active = true;
+
+    api.get('/auth/me')
+      .then(res => {
+        if (active) setUser(res.data);
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  const setSession = (token, userData) => {
+    localStorage.setItem('token', token);
+    setUser(userData);
+  };
 
   const login = async (username, password) => {
     const res = await api.post('/auth/login', { username, password });
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
+    setSession(res.data.token, res.data.user);
     return res.data;
   };
 
@@ -38,7 +47,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, setSession }}>
       {children}
     </AuthContext.Provider>
   );

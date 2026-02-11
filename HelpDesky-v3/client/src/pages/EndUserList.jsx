@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const UserList = () => {
+const EndUserList = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user: currentUser } = useAuth();
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -17,8 +15,10 @@ const UserList = () => {
   const [formData, setFormData] = useState({
     username: '',
     name: '',
-    role: 'AGENT',
-    password: ''
+    role: 'END_USER',
+    password: '',
+    department: '',
+    phone: ''
   });
 
   useEffect(() => {
@@ -27,21 +27,21 @@ const UserList = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/users/staff');
+      const res = await api.get('/users/end-users');
       setUsers(res.data);
     } catch {
-      toast.error('Failed to load users');
+      toast.error('Failed to load end users');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    if (!window.confirm('Are you sure you want to delete this end user?')) return;
     const loadId = toast.loading('Deleting user...');
     try {
       await api.delete(`/users/${id}`);
-      toast.success('User deleted', { id: loadId });
+      toast.success('End user deleted', { id: loadId });
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete user', { id: loadId });
@@ -50,7 +50,14 @@ const UserList = () => {
 
   const openAddModal = () => {
     setEditingUser(null);
-    setFormData({ username: '', name: '', role: 'AGENT', password: '' });
+    setFormData({ 
+      username: '', 
+      name: '', 
+      role: 'END_USER', 
+      password: '',
+      department: '',
+      phone: ''
+    });
     setShowModal(true);
   };
 
@@ -60,7 +67,9 @@ const UserList = () => {
       username: user.username, 
       name: user.name, 
       role: user.role, 
-      password: '' 
+      password: '',
+      department: user.department || '',
+      phone: user.phone || ''
     });
     setShowModal(true);
   };
@@ -68,25 +77,26 @@ const UserList = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    const loadId = toast.loading(editingUser ? 'Updating user...' : 'Creating user...');
+    const loadId = toast.loading(editingUser ? 'Updating end user...' : 'Creating end user...');
     try {
       if (editingUser) {
         // Edit Mode
         const updates = {};
         if (formData.name !== editingUser.name) updates.name = formData.name;
-        if (formData.role !== editingUser.role) updates.role = formData.role;
         if (formData.password) updates.password = formData.password;
+        if (formData.department !== editingUser.department) updates.department = formData.department;
+        if (formData.phone !== editingUser.phone) updates.phone = formData.phone;
 
         if (Object.keys(updates).length > 0) {
           await api.patch(`/users/${editingUser.id}`, updates);
-          toast.success('User updated', { id: loadId });
+          toast.success('End user updated', { id: loadId });
         } else {
           toast.dismiss(loadId);
         }
       } else {
         // Create Mode
         await api.post('/users', formData);
-        toast.success('User created', { id: loadId });
+        toast.success('End user created', { id: loadId });
       }
       setShowModal(false);
       fetchUsers();
@@ -98,13 +108,13 @@ const UserList = () => {
     }
   };
 
-  if (loading) return <div>Loading users...</div>;
+  if (loading) return <div>Loading end users...</div>;
 
   return (
     <div>
       <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
-        <h2>User Management</h2>
-        <button onClick={openAddModal} className="btn">Add New User</button>
+        <h2>End User Management</h2>
+        <button onClick={openAddModal} className="btn">Add New End User</button>
       </div>
 
       <div className="card">
@@ -113,7 +123,8 @@ const UserList = () => {
             <tr>
               <th>Name</th>
               <th>Username</th>
-              <th>Role</th>
+              <th>Department</th>
+              <th>Phone</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -122,7 +133,8 @@ const UserList = () => {
               <tr key={u.id}>
                 <td style={{ fontWeight: '500' }}>{u.name}</td>
                 <td style={{ color: '#6b778c' }}>{u.username}</td>
-                <td><span className="badge">{u.role}</span></td>
+                <td>{u.department || '-'}</td>
+                <td>{u.phone || '-'}</td>
                 <td>
                   <button 
                     onClick={() => openEditModal(u)} 
@@ -131,14 +143,12 @@ const UserList = () => {
                   >
                     Edit
                   </button>
-                  {u.id !== currentUser.id && (
-                    <button 
-                      onClick={() => handleDelete(u.id)} 
-                      style={{ background: 'none', border: 'none', color: '#DE350B', fontSize: '12px', textDecoration: 'underline' }}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleDelete(u.id)} 
+                    style={{ background: 'none', border: 'none', color: '#DE350B', fontSize: '12px', textDecoration: 'underline' }}
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -151,8 +161,8 @@ const UserList = () => {
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginTop: 0 }}>{editingUser ? 'Edit User' : 'Add New User'}</h3>
+          <div className="card" style={{ width: '450px', maxWidth: '90%' }}>
+            <h3 style={{ marginTop: 0 }}>{editingUser ? 'Edit End User' : 'Add New End User'}</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Full Name</label>
@@ -165,7 +175,7 @@ const UserList = () => {
               </div>
               
               <div className="form-group">
-                <label>Username</label>
+                <label>Username (used for login)</label>
                 <input 
                   type="text" 
                   value={formData.username}
@@ -176,15 +186,25 @@ const UserList = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label>Role</label>
-                <select 
-                  value={formData.role}
-                  onChange={e => setFormData({...formData, role: e.target.value})}
-                >
-                  <option value="AGENT">Agent</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
+              <div className="flex gap-2">
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Department</label>
+                  <input 
+                    type="text" 
+                    value={formData.department}
+                    onChange={e => setFormData({...formData, department: e.target.value})}
+                    placeholder="e.g. Sales"
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Phone</label>
+                  <input 
+                    type="text" 
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    placeholder="e.g. 555-0123"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -201,7 +221,7 @@ const UserList = () => {
               <div className="flex justify-between" style={{ marginTop: '20px' }}>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" disabled={submitting}>Cancel</button>
                 <button type="submit" className="btn" disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Save'}
+                  {submitting ? 'Saving...' : 'Save End User'}
                 </button>
               </div>
             </form>
@@ -212,4 +232,4 @@ const UserList = () => {
   );
 };
 
-export default UserList;
+export default EndUserList;

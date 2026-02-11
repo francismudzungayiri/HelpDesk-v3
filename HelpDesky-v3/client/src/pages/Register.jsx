@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { setSession } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -45,7 +45,7 @@ const Register = () => {
       });
 
       toast.success('Account created! Welcome to HelpDesky.', { id: loadId });
-      login(response.data.token, response.data.user);
+      setSession(response.data.token, response.data.user);
       navigate('/portal');
     } catch (err) {
       const messages = err.response?.data?.errors || [err.response?.data?.message || 'Registration failed'];

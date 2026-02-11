@@ -4,51 +4,49 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/stats - Admin Dashboard Stats
-router.get('/', authenticateToken, authorizeRole('ADMIN'), (req, res) => {
+router.get('/', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
   const stats = {};
 
-  (async () => {
-    try {
-      // 1. Total Open Tickets
-      const openTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE status = 'OPEN'");
-      stats.total_open = parseInt(openTicketsRes.rows[0].count);
+  try {
+    // 1. Total Open Tickets
+    const openTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE status = 'OPEN'");
+    stats.total_open = parseInt(openTicketsRes.rows[0].count, 10);
 
-      // 2. Total Users
-      const usersRes = await pool.query("SELECT COUNT(*) as count FROM users");
-      stats.total_users = parseInt(usersRes.rows[0].count);
+    // 2. Total Users
+    const usersRes = await pool.query("SELECT COUNT(*) as count FROM users");
+    stats.total_users = parseInt(usersRes.rows[0].count, 10);
 
-      // 3. Total Tickets (Queries)
-      const totalTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets");
-      stats.total_tickets = parseInt(totalTicketsRes.rows[0].count);
+    // 3. Total Tickets (Queries)
+    const totalTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets");
+    stats.total_tickets = parseInt(totalTicketsRes.rows[0].count, 10);
 
-      // 4. Today's Tickets (Queries)
-      const todayTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE created_at >= CURRENT_DATE");
-      stats.today_tickets = parseInt(todayTicketsRes.rows[0].count);
+    // 4. Today's Tickets (Queries)
+    const todayTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE created_at >= CURRENT_DATE");
+    stats.today_tickets = parseInt(todayTicketsRes.rows[0].count, 10);
 
-      // 2. Staff Workload (Active Tickets assigned) - Filter to only Staff roles
-      const sql = `
-        SELECT u.name, 
-               SUM(CASE WHEN t.status IN ('OPEN', 'IN_PROGRESS') THEN 1 ELSE 0 END) as active_tickets,
-               SUM(CASE WHEN t.status = 'RESOLVED' THEN 1 ELSE 0 END) as resolved_tickets
-        FROM users u
-        LEFT JOIN tickets t ON u.id = t.assignee_id
-        WHERE u.role IN ('ADMIN', 'AGENT')
-        GROUP BY u.id, u.name
-      `;
-      
-      const staffStatsRes = await pool.query(sql);
-      stats.staff_stats = staffStatsRes.rows.map(row => ({
-        name: row.name,
-        active_tickets: parseInt(row.active_tickets || 0),
-        resolved_tickets: parseInt(row.resolved_tickets || 0)
-      }));
-      
-      // Send response
-      res.json(stats);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  })();
+    // 5. Staff Workload
+    const sql = `
+      SELECT u.name, 
+             SUM(CASE WHEN t.status IN ('OPEN', 'IN_PROGRESS') THEN 1 ELSE 0 END) as active_tickets,
+             SUM(CASE WHEN t.status = 'RESOLVED' THEN 1 ELSE 0 END) as resolved_tickets
+      FROM users u
+      LEFT JOIN tickets t ON u.id = t.assignee_id
+      WHERE u.role IN ('ADMIN', 'AGENT')
+      GROUP BY u.id, u.name
+    `;
+    
+    const staffStatsRes = await pool.query(sql);
+    stats.staff_stats = staffStatsRes.rows.map(row => ({
+      name: row.name,
+      active_tickets: parseInt(row.active_tickets || 0, 10),
+      resolved_tickets: parseInt(row.resolved_tickets || 0, 10)
+    }));
+    
+    res.json(stats);
+  } catch (err) {
+    console.error('Load dashboard stats failed:', err);
+    res.status(500).json({ message: 'Failed to load stats' });
+  }
 });
 
 // GET /api/stats/reports - Detailed Reports Data
@@ -86,7 +84,8 @@ router.get('/reports', authenticateToken, authorizeRole('ADMIN'), async (req, re
 
     res.json(reportData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Load reports failed:', err);
+    res.status(500).json({ message: 'Failed to load reports' });
   }
 });
 

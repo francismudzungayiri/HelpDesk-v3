@@ -14,7 +14,7 @@ const AdminDashboard = () => {
     try {
       const res = await api.get('/stats');
       setStats(res.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);

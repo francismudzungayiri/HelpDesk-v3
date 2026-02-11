@@ -37,7 +37,7 @@ router.post('/login', async (req, res) => {
         process.env.JWT_SECRET,
         { expiresIn: '8h' }
       );
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+      res.json({ token, user: { id: user.id, username: user.username, name: user.name, role: user.role } });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -45,7 +45,8 @@ router.post('/login', async (req, res) => {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ errors: err.errors.map(e => e.message) });
     }
-    res.status(500).json({ error: err.message });
+    console.error('Login failed:', err);
+    res.status(500).json({ message: 'Login failed' });
   }
 });
 
@@ -57,7 +58,8 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (!user) return res.sendStatus(404);
     res.json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Get current user failed:', err);
+    res.status(500).json({ message: 'Failed to fetch current user' });
   }
 });
 
@@ -90,7 +92,8 @@ router.post('/register', async (req, res) => {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ errors: err.errors.map(e => e.message) });
     }
-    res.status(500).json({ error: err.message });
+    console.error('Register failed:', err);
+    res.status(500).json({ message: 'Registration failed' });
   }
 });
 

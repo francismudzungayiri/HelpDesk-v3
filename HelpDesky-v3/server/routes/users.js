@@ -2,33 +2,67 @@ const express = require('express');
 const { z } = require('zod');
 const pool = require('../db');
 const bcrypt = require('bcrypt');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken, authorizeRole, authorizeAnyRole } = require('../middleware/auth');
 const router = express.Router();
 
 // Validation Schemas
 const userCreateSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(['ADMIN', 'AGENT']),
-  name: z.string().min(2, "Name is required")
+  role: z.enum(['ADMIN', 'AGENT', 'END_USER']),
+  name: z.string().min(2, "Name is required"),
+  department: z.string().optional(),
+  phone: z.string().optional()
 });
 
 const userUpdateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  role: z.enum(['ADMIN', 'AGENT']).optional(),
-  password: z.string().min(6, "Password must be at least 6 characters").optional()
+  role: z.enum(['ADMIN', 'AGENT', 'END_USER']).optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  department: z.string().optional(),
+  phone: z.string().optional()
 });
 
-// GET /api/users - List all users (id, name, username, role)
-router.get('/', authenticateToken, async (req, res) => {
+const listUsersByRoleClause = async (res, whereClause, params = []) => {
   try {
-    const result = await pool.query(
-      "SELECT id, name, username, role FROM users WHERE role IN ('ADMIN', 'AGENT') ORDER BY id"
-    );
+    let sql = "SELECT id, name, username, role, department, phone FROM users";
+    if (whereClause) sql += ` WHERE ${whereClause}`;
+    sql += " ORDER BY id";
+    const result = await pool.query(sql, params);
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('List users failed:', err);
+    res.status(500).json({ message: 'Failed to list users' });
   }
+};
+
+// GET /api/users/staff - List staff users
+router.get('/staff', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
+  return listUsersByRoleClause(res, "role IN ('ADMIN', 'AGENT')");
+});
+
+// GET /api/users/end-users - List end users (admin only)
+router.get('/end-users', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
+  return listUsersByRoleClause(res, "role = 'END_USER'");
+});
+
+// GET /api/users - Backward-compatible list users endpoint
+router.get('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
+  const { role } = req.query;
+
+  if (!role) {
+    return listUsersByRoleClause(res, "role IN ('ADMIN', 'AGENT')");
+  }
+
+  if (!['ADMIN', 'AGENT', 'END_USER'].includes(role)) {
+    return res.status(400).json({ message: 'Invalid role filter' });
+  }
+
+  if (role === 'END_USER' && req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
+  return listUsersByRoleClause(res, "role = $1", [role]);
 });
 
 // POST /api/users - Create new user (Admin only)
@@ -44,8 +78,8 @@ router.post('/', authenticateToken, authorizeRole('ADMIN'), async (req, res) => 
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (username, password, role, name) VALUES ($1, $2, $3, $4) RETURNING id, username, role, name",
-      [username, hash, role, name]
+      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name, department, phone",
+      [username, hash, role, name, req.body.department, req.body.phone]
     );
     
     res.status(201).json(result.rows[0]);
@@ -53,7 +87,8 @@ router.post('/', authenticateToken, authorizeRole('ADMIN'), async (req, res) => 
     if (err instanceof z.ZodError) {
       return res.status(400).json({ errors: err.errors.map(e => e.message) });
     }
-    res.status(500).json({ error: err.message });
+    console.error('Create user failed:', err);
+    res.status(500).json({ message: 'Failed to create user' });
   }
 });
 
@@ -80,11 +115,19 @@ router.patch('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res)
       updates.push(`password = $${idx++}`);
       values.push(hash);
     }
+    if (req.body.department !== undefined) {
+      updates.push(`department = $${idx++}`);
+      values.push(req.body.department);
+    }
+    if (req.body.phone !== undefined) {
+      updates.push(`phone = $${idx++}`);
+      values.push(req.body.phone);
+    }
 
     if (updates.length === 0) return res.status(400).json({ message: 'No fields to update' });
 
     values.push(id);
-    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, name, username, role`;
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, name, username, role, department, phone`;
     
     const result = await pool.query(sql, values);
     
@@ -95,7 +138,8 @@ router.patch('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res)
     if (err instanceof z.ZodError) {
       return res.status(400).json({ errors: err.errors.map(e => e.message) });
     }
-    res.status(500).json({ error: err.message });
+    console.error('Update user failed:', err);
+    res.status(500).json({ message: 'Failed to update user' });
   }
 });
 
@@ -103,7 +147,7 @@ router.patch('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res)
 router.delete('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
   const { id } = req.params;
   
-  if (parseInt(id) === req.user.id) {
+  if (parseInt(id, 10) === req.user.id) {
     return res.status(400).json({ message: "You cannot delete yourself" });
   }
 
@@ -117,7 +161,8 @@ router.delete('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res
     if (err.code === '23503') { // ForeignKeyViolation
       res.status(400).json({ message: 'Cannot delete user with assigned tickets. Reassign tickets first.' });
     } else {
-      res.status(500).json({ error: err.message });
+      console.error('Delete user failed:', err);
+      res.status(500).json({ message: 'Failed to delete user' });
     }
   }
 });

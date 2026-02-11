@@ -23,4 +23,12 @@ const authorizeRole = (role) => {
   };
 };
 
-module.exports = { authenticateToken, authorizeRole };
+const authorizeAnyRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) return res.sendStatus(401);
+    if (roles.includes(req.user.role)) return next();
+    return res.sendStatus(403);
+  };
+};
+
+module.exports = { authenticateToken, authorizeRole, authorizeAnyRole };
