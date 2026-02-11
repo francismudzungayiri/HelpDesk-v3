@@ -15,7 +15,9 @@ async function initTables() {
           id SERIAL PRIMARY KEY,
           username VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
-          role VARCHAR(50) NOT NULL CHECK(role IN ('ADMIN', 'AGENT')),
+          role VARCHAR(50) NOT NULL CHECK(role IN ('ADMIN', 'AGENT', 'END_USER')),
+          department VARCHAR(255),
+          phone VARCHAR(255),
           name VARCHAR(255) NOT NULL
         )
       `);
@@ -31,6 +33,7 @@ async function initTables() {
           priority VARCHAR(50) NOT NULL CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH')),
           status VARCHAR(50) NOT NULL CHECK(status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')),
           assignee_id INTEGER REFERENCES users(id),
+          created_by INTEGER REFERENCES users(id),
           resolution_note TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

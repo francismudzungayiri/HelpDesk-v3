@@ -42,18 +42,30 @@ const NavBar = () => {
         <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
           Menu
         </div>
-        <Link to="/" style={linkStyle('/')}>All Tickets</Link>
-        <Link to="/tickets/new" style={linkStyle('/tickets/new')}>Create Ticket</Link>
         
-        {user.role === 'ADMIN' && (
-          <div style={{ marginTop: '20px' }}>
-             <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
-              Admin
-            </div>
-            <Link to="/admin" style={linkStyle('/admin')}>Dashboard</Link>
-            <Link to="/users" style={linkStyle('/users')}>Users</Link>
-            <Link to="/reports" style={linkStyle('/reports')}>Reports</Link>
-          </div>
+        {user.role === 'END_USER' ? (
+          // Simplified navigation for END_USERs
+          <>
+            <Link to="/portal" style={linkStyle('/portal')}>My Tickets</Link>
+            <Link to="/tickets/new" style={linkStyle('/tickets/new')}>Submit Ticket</Link>
+          </>
+        ) : (
+          // Full navigation for ADMIN/AGENT
+          <>
+            <Link to="/" style={linkStyle('/')}>All Tickets</Link>
+            <Link to="/tickets/new" style={linkStyle('/tickets/new')}>Create Ticket</Link>
+            
+            {user.role === 'ADMIN' && (
+              <div style={{ marginTop: '20px' }}>
+                 <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
+                  Admin
+                </div>
+                <Link to="/admin" style={linkStyle('/admin')}>Dashboard</Link>
+                <Link to="/users" style={linkStyle('/users')}>Users</Link>
+                <Link to="/reports" style={linkStyle('/reports')}>Reports</Link>
+              </div>
+            )}
+          </>
         )}
       </div>
 

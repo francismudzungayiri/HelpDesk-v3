@@ -9,6 +9,8 @@ import TicketDetail from './pages/TicketDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Reports from './pages/Reports';
 import UserList from './pages/UserList';
+import Register from './pages/Register';
+import EndUserPortal from './pages/EndUserPortal';
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -16,6 +18,11 @@ const ProtectedRoute = () => {
   
   if (loading) return <div>Loading...</div>; // Simple loading state
   if (!user) return <Navigate to="/login" replace />;
+
+  // Role-based redirect for END_USERs
+  if (user.role === 'END_USER' && window.location.pathname === '/') {
+    return <Navigate to="/portal" replace />;
+  }
 
   return (
     <div style={{ display: 'flex' }}>
@@ -33,9 +40,11 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<TicketList />} />
+            <Route path="/portal" element={<EndUserPortal />} />
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/admin" element={<AdminDashboard />} />

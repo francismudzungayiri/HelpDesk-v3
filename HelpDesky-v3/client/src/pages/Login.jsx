@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -12,8 +12,14 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(username, password);
-      navigate('/');
+      const response = await login(username, password);
+      
+      // Role-based redirect
+      if (response?.user?.role === 'END_USER') {
+        navigate('/portal');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError('Invalid username or password');
     }
@@ -46,6 +52,10 @@ const Login = () => {
           </div>
           <button type="submit" className="btn" style={{ width: '100%' }}>Sign In</button>
         </form>
+        
+        <div style={{ textAlign: 'center', marginTop: '20px', color: '#6b778c' }}>
+          Don't have an account? <Link to="/register" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '500' }}>Register</Link>
+        </div>
       </div>
     </div>
   );

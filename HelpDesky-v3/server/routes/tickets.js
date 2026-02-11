@@ -27,6 +27,13 @@ router.get('/', authenticateToken, async (req, res) => {
      paramCount++;
   }
 
+  // Role-based filtering: END_USERs only see their own tickets
+  if (req.user.role === 'END_USER') {
+    sql += ` AND t.created_by = $${paramCount}`;
+    params.push(req.user.id);
+    paramCount++;
+  }
+
   // Sorting
   if (sort === 'priority') {
     sql += ` ORDER BY CASE t.priority 
@@ -60,7 +67,15 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(sql, [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Ticket not found' });
-    res.json(result.rows[0]);
+    
+    const ticket = result.rows[0];
+    
+    // Role-based access: END_USERs can only view their own tickets
+    if (req.user.role === 'END_USER' && ticket.created_by !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    res.json(ticket);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,7 +83,19 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 // POST /api/tickets - Create new ticket
 router.post('/', authenticateToken, async (req, res) => {
-  const { caller_name, department, phone, description, priority } = req.body;
+  let { caller_name, department, phone, description, priority } = req.body;
+  
+  // For END_USERs, auto-populate caller info from their profile
+  if (req.user.role === 'END_USER') {
+    const userResult = await pool.query(
+      "SELECT name, department, phone FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    const userProfile = userResult.rows[0];
+    caller_name = userProfile.name;
+    department = userProfile.department;
+    phone = userProfile.phone || phone; // Allow override if provided
+  }
   
   // Validation
   if (!caller_name || !department || !description || !priority) {
@@ -76,13 +103,20 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   const sql = `
-    INSERT INTO tickets (caller_name, department, phone, description, priority, status) 
-    VALUES ($1, $2, $3, $4, $5, 'OPEN') 
+    INSERT INTO tickets (caller_name, department, phone, description, priority, status, created_by) 
+    VALUES ($1, $2, $3, $4, $5, 'OPEN', $6) 
     RETURNING id
   `;
   
   try {
-    const result = await pool.query(sql, [caller_name, department, phone, description, priority]);
+    const result = await pool.query(sql, [
+      caller_name, 
+      department, 
+      phone, 
+      description, 
+      priority,
+      req.user.id // created_by
+    ]);
     res.status(201).json({ 
       id: result.rows[0].id, 
       message: 'Ticket created',
@@ -163,6 +197,8 @@ router.post('/:id/notes', authenticateToken, async (req, res) => {
   const { note } = req.body;
   const userId = req.user.id;
 
+  console.log('POST /notes - Ticket ID:', id, 'User ID:', userId, 'Note:', note);
+
   if (!note) return res.status(400).json({ message: 'Note content is required' });
 
   try {
@@ -180,6 +216,7 @@ router.post('/:id/notes', authenticateToken, async (req, res) => {
 
     res.status(201).json(noteWithUser);
   } catch (err) {
+    console.error('Error adding note:', err);
     res.status(500).json({ error: err.message });
   }
 });

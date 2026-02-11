@@ -48,4 +48,42 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/auth/register - End-user registration
+router.post('/register', async (req, res) => {
+  const { username, password, name, department, phone } = req.body;
+
+  // Validation
+  if (!username || !password || !name || !department) {
+    return res.status(400).json({ message: 'Username, password, name, and department are required' });
+  }
+
+  try {
+    // Check if username already exists
+    const existingUser = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ message: 'Username already exists' });
+    }
+
+    // Hash password and create user with END_USER role
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name",
+      [username, hash, 'END_USER', name, department, phone]
+    );
+
+    const user = result.rows[0];
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({ token, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
