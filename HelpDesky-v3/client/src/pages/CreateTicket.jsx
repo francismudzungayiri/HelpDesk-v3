@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import toast from 'react-hot-toast';
 
 const CreateTicket = () => {
   const navigate = useNavigate();
@@ -12,7 +13,6 @@ const CreateTicket = () => {
     description: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -21,13 +21,15 @@ const CreateTicket = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    const loadId = toast.loading('Creating ticket...');
 
     try {
       await api.post('/tickets', formData);
+      toast.success('Ticket created successfully', { id: loadId });
       navigate('/');
     } catch (err) {
-      setError('Failed to create ticket. Please try again.');
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to create ticket'];
+      messages.forEach(msg => toast.error(msg, { id: loadId }));
       setLoading(false);
     }
   };
@@ -36,7 +38,6 @@ const CreateTicket = () => {
     <div style={{ maxWidth: '600px', margin: '40px auto' }}>
       <div className="card">
         <h2 style={{ marginBottom: '20px' }}>Create New Ticket</h2>
-        {error && <div style={{ color: 'var(--danger)', marginBottom: '15px' }}>{error}</div>}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">

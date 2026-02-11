@@ -17,14 +17,23 @@ router.get('/', authenticateToken, authorizeRole('ADMIN'), (req, res) => {
       const usersRes = await pool.query("SELECT COUNT(*) as count FROM users");
       stats.total_users = parseInt(usersRes.rows[0].count);
 
-      // 2. Staff Workload (Active Tickets assigned)
+      // 3. Total Tickets (Queries)
+      const totalTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets");
+      stats.total_tickets = parseInt(totalTicketsRes.rows[0].count);
+
+      // 4. Today's Tickets (Queries)
+      const todayTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE created_at >= CURRENT_DATE");
+      stats.today_tickets = parseInt(todayTicketsRes.rows[0].count);
+
+      // 2. Staff Workload (Active Tickets assigned) - Filter to only Staff roles
       const sql = `
         SELECT u.name, 
                SUM(CASE WHEN t.status IN ('OPEN', 'IN_PROGRESS') THEN 1 ELSE 0 END) as active_tickets,
                SUM(CASE WHEN t.status = 'RESOLVED' THEN 1 ELSE 0 END) as resolved_tickets
         FROM users u
         LEFT JOIN tickets t ON u.id = t.assignee_id
-        GROUP BY u.id
+        WHERE u.role IN ('ADMIN', 'AGENT')
+        GROUP BY u.id, u.name
       `;
       
       const staffStatsRes = await pool.query(sql);
@@ -65,12 +74,12 @@ router.get('/reports', authenticateToken, authorizeRole('ADMIN'), async (req, re
     `);
     reportData.tickets_over_time = timeRes.rows;
 
-    // 4. Assignee Performance (Resolved Count)
+    // 4. Assignee Performance (Resolved Count) - Filter to Staff roles
     const assigneeRes = await pool.query(`
       SELECT u.name, COUNT(t.id) as resolved_count
       FROM users u
       JOIN tickets t ON u.id = t.assignee_id
-      WHERE t.status = 'RESOLVED'
+      WHERE t.status = 'RESOLVED' AND u.role IN ('ADMIN', 'AGENT')
       GROUP BY u.name
     `);
     reportData.assignee_performance = assigneeRes.rows;

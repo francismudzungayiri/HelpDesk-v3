@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ const Register = () => {
     department: '',
     phone: ''
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -26,20 +26,14 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      toast.error('Passwords do not match');
       return;
     }
 
     setLoading(true);
+    const loadId = toast.loading('Creating your account...');
 
     try {
       const response = await api.post('/auth/register', {
@@ -50,11 +44,12 @@ const Register = () => {
         phone: formData.phone
       });
 
-      // Auto-login after registration
+      toast.success('Account created! Welcome to HelpDesky.', { id: loadId });
       login(response.data.token, response.data.user);
       navigate('/portal');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Registration failed'];
+      messages.forEach(msg => toast.error(msg, { id: loadId }));
     } finally {
       setLoading(false);
     }
@@ -73,18 +68,6 @@ const Register = () => {
         <p style={{ textAlign: 'center', color: '#6b778c', marginBottom: '30px' }}>
           Register to submit and track support tickets
         </p>
-
-        {error && (
-          <div style={{ 
-            padding: '12px', 
-            background: '#ffebee', 
-            color: '#c62828', 
-            borderRadius: '4px',
-            marginBottom: '20px'
-          }}>
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

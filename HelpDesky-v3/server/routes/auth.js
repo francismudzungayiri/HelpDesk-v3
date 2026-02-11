@@ -1,19 +1,30 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { z } = require('zod');
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
+// Validation Schemas
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required")
+});
+
+const registerSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(50),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(2, "Name is required"),
+  department: z.string().min(1, "Department is required"),
+  phone: z.string().optional()
+});
+
 // Login
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username and password required' });
-  }
-
   try {
+    const { username, password } = loginSchema.parse(req.body);
+
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
     const user = result.rows[0];
 
@@ -21,7 +32,6 @@ router.post('/login', async (req, res) => {
 
     const match = await bcrypt.compare(password, user.password);
     if (match) {
-      // Create Token
       const token = jwt.sign(
         { id: user.id, username: user.username, role: user.role },
         process.env.JWT_SECRET,
@@ -32,6 +42,9 @@ router.post('/login', async (req, res) => {
       res.status(401).json({ message: 'Invalid credentials' });
     }
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -50,21 +63,15 @@ router.get('/me', authenticateToken, async (req, res) => {
 
 // POST /api/auth/register - End-user registration
 router.post('/register', async (req, res) => {
-  const { username, password, name, department, phone } = req.body;
-
-  // Validation
-  if (!username || !password || !name || !department) {
-    return res.status(400).json({ message: 'Username, password, name, and department are required' });
-  }
-
   try {
+    const { username, password, name, department, phone } = registerSchema.parse(req.body);
+
     // Check if username already exists
     const existingUser = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ message: 'Username already exists' });
     }
 
-    // Hash password and create user with END_USER role
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
       "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name",
@@ -72,8 +79,6 @@ router.post('/register', async (req, res) => {
     );
 
     const user = result.rows[0];
-
-    // Generate token
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
@@ -82,6 +87,9 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ token, user });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+    }
     res.status(500).json({ error: err.message });
   }
 });

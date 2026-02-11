@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import NavBar from './components/NavBar';
 import Login from './pages/Login';
@@ -15,12 +15,23 @@ import EndUserPortal from './pages/EndUserPortal';
 // Protected Route Wrapper
 const ProtectedRoute = () => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   
-  if (loading) return <div>Loading...</div>; // Simple loading state
-  if (!user) return <Navigate to="/login" replace />;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '15px' }}>
+        <div className="spinner"></div>
+        <div style={{ color: '#6b778c', fontSize: '18px' }}>Loading HelpDesky...</div>
+      </div>
+    );
+  }
 
-  // Role-based redirect for END_USERs
-  if (user.role === 'END_USER' && window.location.pathname === '/') {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Role-based redirect for END_USERs who land on the admin root
+  if (user.role === 'END_USER' && location.pathname === '/') {
     return <Navigate to="/portal" replace />;
   }
 
@@ -34,10 +45,14 @@ const ProtectedRoute = () => {
   );
 };
 
+
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   return (
     <Router>
       <AuthProvider>
+        <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

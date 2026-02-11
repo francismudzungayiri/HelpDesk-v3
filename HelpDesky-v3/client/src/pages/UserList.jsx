@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -10,6 +11,7 @@ const UserList = () => {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -28,7 +30,7 @@ const UserList = () => {
       const res = await api.get('/users');
       setUsers(res.data);
     } catch (err) {
-      console.error('Failed to fetch users');
+      toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -36,11 +38,13 @@ const UserList = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
+    const loadId = toast.loading('Deleting user...');
     try {
       await api.delete(`/users/${id}`);
+      toast.success('User deleted', { id: loadId });
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete user');
+      toast.error(err.response?.data?.message || 'Failed to delete user', { id: loadId });
     }
   };
 
@@ -56,13 +60,15 @@ const UserList = () => {
       username: user.username, 
       name: user.name, 
       role: user.role, 
-      password: '' // Don't show existing hash
+      password: '' 
     });
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
+    const loadId = toast.loading(editingUser ? 'Updating user...' : 'Creating user...');
     try {
       if (editingUser) {
         // Edit Mode
@@ -73,15 +79,22 @@ const UserList = () => {
 
         if (Object.keys(updates).length > 0) {
           await api.patch(`/users/${editingUser.id}`, updates);
+          toast.success('User updated', { id: loadId });
+        } else {
+          toast.dismiss(loadId);
         }
       } else {
         // Create Mode
         await api.post('/users', formData);
+        toast.success('User created', { id: loadId });
       }
       setShowModal(false);
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Operation failed');
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Operation failed'];
+      messages.forEach(msg => toast.error(msg, { id: loadId }));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -158,7 +171,7 @@ const UserList = () => {
                   value={formData.username}
                   onChange={e => setFormData({...formData, username: e.target.value})}
                   required
-                  disabled={!!editingUser} // Cannot change username when editing
+                  disabled={!!editingUser}
                   style={editingUser ? { background: '#f4f5f7', color: '#6b778c' } : {}}
                 />
               </div>
@@ -186,8 +199,10 @@ const UserList = () => {
               </div>
 
               <div className="flex justify-between" style={{ marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn">Save</button>
+                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" disabled={submitting}>Cancel</button>
+                <button type="submit" className="btn" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </form>
           </div>

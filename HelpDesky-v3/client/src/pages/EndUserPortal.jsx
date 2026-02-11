@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const EndUserPortal = () => {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ const EndUserPortal = () => {
   const handleSubmitTicket = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    const loadId = toast.loading('Submitting your ticket...');
 
     try {
       await api.post('/tickets', {
@@ -40,12 +42,13 @@ const EndUserPortal = () => {
         priority: newTicket.priority
       });
 
-      // Reset form and refresh tickets
+      toast.success('Ticket submitted successfully!', { id: loadId });
       setNewTicket({ description: '', priority: 'MEDIUM' });
       setShowNewTicket(false);
       fetchTickets();
     } catch (err) {
-      alert('Failed to submit ticket: ' + (err.response?.data?.message || err.message));
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to submit ticket'];
+      messages.forEach(msg => toast.error(msg, { id: loadId }));
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +79,13 @@ const EndUserPortal = () => {
     resolved: tickets.filter(t => t.status === 'RESOLVED').length
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '15px' }}>
+        <div style={{ color: '#6b778c', fontSize: '18px' }}>Loading your tickets...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>

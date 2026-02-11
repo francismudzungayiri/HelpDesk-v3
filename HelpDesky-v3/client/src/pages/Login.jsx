@@ -1,27 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const loadId = toast.loading('Signing in...');
     try {
       const response = await login(username, password);
+      toast.success('Welcome back!', { id: loadId });
       
-      // Role-based redirect
       if (response?.user?.role === 'END_USER') {
         navigate('/portal');
       } else {
         navigate('/');
       }
     } catch (err) {
-      setError('Invalid username or password');
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Invalid username or password'];
+      toast.error(messages[0], { id: loadId });
     }
   };
 
@@ -29,7 +31,6 @@ const Login = () => {
     <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px' }}>
       <div className="card" style={{ width: '400px' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>HelpDesky Login</h2>
-        {error && <div style={{ color: 'var(--danger)', marginBottom: '15px' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Username</label>
