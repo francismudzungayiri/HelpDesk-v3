@@ -188,7 +188,7 @@ const normalizeCustomFields = (definitions, submittedFields) => {
 
 // GET /api/tickets - List all tickets (with filters)
 router.get('/', authenticateToken, async (req, res) => {
-  const { status, sort, assignee_id } = req.query;
+  const { status, sort, assignee_id, scope } = req.query;
 
   let sql = `
     SELECT
@@ -216,6 +216,28 @@ router.get('/', authenticateToken, async (req, res) => {
   if (assignee_id) {
     sql += ` AND t.assignee_id = $${paramCount}`;
     params.push(assignee_id);
+    paramCount++;
+  }
+
+  if (scope !== undefined) {
+    const normalizedScope = String(scope).trim().toLowerCase();
+    if (normalizedScope !== 'my') {
+      return res.status(400).json({ message: 'Invalid scope filter' });
+    }
+
+    sql += ` AND (
+      t.created_by = $${paramCount}
+      OR t.assignee_id = $${paramCount}
+      OR EXISTS (
+        SELECT 1
+        FROM ticket_history h
+        WHERE h.ticket_id = t.id
+          AND h.user_id = $${paramCount}
+          AND h.action = 'STATUS_CHANGE'
+          AND h.new_value = 'RESOLVED'
+      )
+    )`;
+    params.push(req.user.id);
     paramCount++;
   }
 

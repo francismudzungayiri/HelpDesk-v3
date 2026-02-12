@@ -61,16 +61,20 @@ const NavBar = () => {
               <Link to="/" onClick={closeMobileMenu} style={linkStyle('/')}>All Tickets</Link>
               <Link to="/tickets/new" onClick={closeMobileMenu} style={linkStyle('/tickets/new')}>Create Ticket</Link>
 
-              {user.role === 'ADMIN' && (
+              {(user.role === 'ADMIN' || user.role === 'AGENT') && (
                 <div style={{ marginTop: '20px' }}>
                   <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
-                    Admin
+                    Management
                   </div>
                   <Link to="/admin" onClick={closeMobileMenu} style={linkStyle('/admin')}>Dashboard</Link>
                   <Link to="/users" onClick={closeMobileMenu} style={linkStyle('/users')}>Staff</Link>
                   <Link to="/end-users" onClick={closeMobileMenu} style={linkStyle('/end-users')}>End Users</Link>
-                  <Link to="/ticket-settings" onClick={closeMobileMenu} style={linkStyle('/ticket-settings')}>Ticket Settings</Link>
-                  <Link to="/reports" onClick={closeMobileMenu} style={linkStyle('/reports')}>Reports</Link>
+                  {user.role === 'ADMIN' && (
+                    <>
+                      <Link to="/ticket-settings" onClick={closeMobileMenu} style={linkStyle('/ticket-settings')}>Ticket Settings</Link>
+                      <Link to="/reports" onClick={closeMobileMenu} style={linkStyle('/reports')}>Reports</Link>
+                    </>
+                  )}
                 </div>
               )}
             </>

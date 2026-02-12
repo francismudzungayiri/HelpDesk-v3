@@ -91,7 +91,7 @@ function App() {
             <Route
               path="/admin"
               element={(
-                <RoleRoute roles={['ADMIN']}>
+                <RoleRoute roles={['ADMIN', 'AGENT']}>
                   <AdminDashboard />
                 </RoleRoute>
               )}
@@ -99,7 +99,7 @@ function App() {
             <Route
               path="/users"
               element={(
-                <RoleRoute roles={['ADMIN']}>
+                <RoleRoute roles={['ADMIN', 'AGENT']}>
                   <UserList />
                 </RoleRoute>
               )}
@@ -107,7 +107,7 @@ function App() {
             <Route
               path="/end-users"
               element={(
-                <RoleRoute roles={['ADMIN']}>
+                <RoleRoute roles={['ADMIN', 'AGENT']}>
                   <EndUserList />
                 </RoleRoute>
               )}

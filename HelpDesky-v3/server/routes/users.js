@@ -2,8 +2,9 @@ const express = require('express');
 const { z } = require('zod');
 const pool = require('../db');
 const bcrypt = require('bcrypt');
-const { authenticateToken, authorizeRole, authorizeAnyRole } = require('../middleware/auth');
+const { authenticateToken, authorizeAnyRole } = require('../middleware/auth');
 const router = express.Router();
+const SYSTEM_ADMIN_USERNAME = String(process.env.SEED_ADMIN_USERNAME || 'admin').trim().toLowerCase();
 
 // Validation Schemas
 const userCreateSchema = z.object({
@@ -41,8 +42,8 @@ router.get('/staff', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
   return listUsersByRoleClause(res, "role IN ('ADMIN', 'AGENT')");
 });
 
-// GET /api/users/end-users - List end users (admin only)
-router.get('/end-users', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
+// GET /api/users/end-users - List end users (admin or agent)
+router.get('/end-users', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   return listUsersByRoleClause(res, "role = 'END_USER'");
 });
 
@@ -58,15 +59,15 @@ router.get('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (re
     return res.status(400).json({ message: 'Invalid role filter' });
   }
 
-  if (role === 'END_USER' && req.user.role !== 'ADMIN') {
+  if (role === 'END_USER' && !['ADMIN', 'AGENT'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Access denied' });
   }
 
   return listUsersByRoleClause(res, "role = $1", [role]);
 });
 
-// POST /api/users - Create new user (Admin only)
-router.post('/', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
+// POST /api/users - Create new user (admin or agent)
+router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
     const { username, password, role, name } = userCreateSchema.parse(req.body);
 
@@ -92,8 +93,8 @@ router.post('/', authenticateToken, authorizeRole('ADMIN'), async (req, res) => 
   }
 });
 
-// PATCH /api/users/:id - Update user details (Admin only)
-router.patch('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
+// PATCH /api/users/:id - Update user details (admin or agent)
+router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, role, password } = userUpdateSchema.parse(req.body);
@@ -143,8 +144,8 @@ router.patch('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res)
   }
 });
 
-// DELETE /api/users/:id - Delete user (Admin only)
-router.delete('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res) => {
+// DELETE /api/users/:id - Delete user (admin or agent)
+router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   const { id } = req.params;
   
   if (parseInt(id, 10) === req.user.id) {
@@ -152,6 +153,15 @@ router.delete('/:id', authenticateToken, authorizeRole('ADMIN'), async (req, res
   }
 
   try {
+    const targetRes = await pool.query("SELECT id, username FROM users WHERE id = $1", [id]);
+    if (targetRes.rowCount === 0) return res.status(404).json({ message: 'User not found' });
+
+    const targetUser = targetRes.rows[0];
+    const targetUsername = String(targetUser.username || '').trim().toLowerCase();
+    if (targetUsername === SYSTEM_ADMIN_USERNAME) {
+      return res.status(403).json({ message: 'System admin account cannot be deleted' });
+    }
+
     const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
     
     if (result.rowCount === 0) return res.status(404).json({ message: 'User not found' });
