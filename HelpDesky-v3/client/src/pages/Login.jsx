@@ -28,8 +28,8 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px' }}>
-      <div className="card" style={{ width: '400px' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100vh', padding: '16px 0', alignItems: 'center' }}>
+      <div className="card" style={{ width: 'min(400px, 100%)' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>HelpDesky Login</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">

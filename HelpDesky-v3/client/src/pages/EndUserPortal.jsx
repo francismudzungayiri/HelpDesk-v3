@@ -9,12 +9,6 @@ const EndUserPortal = () => {
   const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showNewTicket, setShowNewTicket] = useState(false);
-  const [newTicket, setNewTicket] = useState({
-    description: '',
-    priority: 'MEDIUM'
-  });
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -26,57 +20,43 @@ const EndUserPortal = () => {
       setTickets(response.data);
     } catch (err) {
       console.error('Error fetching tickets:', err);
+      toast.error('Failed to load your tickets');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmitTicket = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const loadId = toast.loading('Submitting your ticket...');
-
-    try {
-      await api.post('/tickets', {
-        description: newTicket.description,
-        priority: newTicket.priority
-      });
-
-      toast.success('Ticket submitted successfully!', { id: loadId });
-      setNewTicket({ description: '', priority: 'MEDIUM' });
-      setShowNewTicket(false);
-      fetchTickets();
-    } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to submit ticket'];
-      messages.forEach(msg => toast.error(msg, { id: loadId }));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case 'OPEN': return '#f59e0b';
-      case 'IN_PROGRESS': return '#3b82f6';
-      case 'RESOLVED': return '#10b981';
-      default: return '#6b7280';
+      case 'OPEN':
+        return '#f59e0b';
+      case 'IN_PROGRESS':
+        return '#3b82f6';
+      case 'RESOLVED':
+        return '#10b981';
+      default:
+        return '#6b7280';
     }
   };
 
   const getPriorityBadgeColor = (priority) => {
     switch (priority) {
-      case 'HIGH': return '#ef4444';
-      case 'MEDIUM': return '#f59e0b';
-      case 'LOW': return '#10b981';
-      default: return '#6b7280';
+      case 'HIGH':
+        return '#ef4444';
+      case 'MEDIUM':
+        return '#f59e0b';
+      case 'LOW':
+        return '#10b981';
+      default:
+        return '#6b7280';
     }
   };
 
   const stats = {
     total: tickets.length,
-    open: tickets.filter(t => t.status === 'OPEN').length,
-    inProgress: tickets.filter(t => t.status === 'IN_PROGRESS').length,
-    resolved: tickets.filter(t => t.status === 'RESOLVED').length
+    open: tickets.filter((ticket) => ticket.status === 'OPEN').length,
+    inProgress: tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length,
+    resolved: tickets.filter((ticket) => ticket.status === 'RESOLVED').length
   };
 
   if (loading) {
@@ -88,13 +68,12 @@ const EndUserPortal = () => {
   }
 
   return (
-    <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ margin: 0, marginBottom: '10px' }}>My Support Tickets</h1>
         <p style={{ color: '#6b778c', margin: 0 }}>Welcome, {user?.name}</p>
       </div>
 
-      {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
         <div className="card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>{stats.total}</div>
@@ -114,126 +93,136 @@ const EndUserPortal = () => {
         </div>
       </div>
 
-      {/* New Ticket Button */}
       <div style={{ marginBottom: '20px' }}>
-        <button 
-          className="btn" 
-          onClick={() => setShowNewTicket(!showNewTicket)}
-        >
-          {showNewTicket ? '✕ Cancel' : '+ New Ticket'}
+        <button className="btn" onClick={() => navigate('/tickets/new')}>
+          + New Ticket
         </button>
       </div>
 
-      {/* New Ticket Form */}
-      {showNewTicket && (
-        <div className="card" style={{ marginBottom: '30px' }}>
-          <h3 style={{ marginTop: 0 }}>Submit New Ticket</h3>
-          <form onSubmit={handleSubmitTicket}>
-            <div className="form-group">
-              <label>Describe your issue *</label>
-              <textarea
-                value={newTicket.description}
-                onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
-                rows="4"
-                required
-                placeholder="Please provide details about your issue..."
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Priority</label>
-              <select
-                value={newTicket.priority}
-                onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
-              >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
-            </div>
-
-            <button type="submit" className="btn" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit Ticket'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Tickets List */}
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Your Tickets</h3>
-        
+
         {tickets.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#6b778c' }}>
             <div style={{ fontSize: '48px', marginBottom: '10px' }}>📋</div>
             <p>No tickets yet. Click "New Ticket" to get started.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #dfe1e6' }}>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>ID</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Description</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Priority</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Created</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tickets.map(ticket => (
-                  <tr key={ticket.id} style={{ borderBottom: '1px solid #dfe1e6' }}>
-                    <td style={{ padding: '12px' }}>#{ticket.id}</td>
-                    <td style={{ padding: '12px', maxWidth: '300px' }}>
-                      <div style={{ 
-                        overflow: 'hidden', 
-                        textOverflow: 'ellipsis', 
-                        whiteSpace: 'nowrap' 
-                      }}>
-                        {ticket.description}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{
+          <div>
+            <div className="table-responsive table-wide hide-mobile">
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #dfe1e6' }}>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>ID</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Description</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Category</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Priority</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Created</th>
+                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tickets.map((ticket) => (
+                    <tr key={ticket.id} style={{ borderBottom: '1px solid #dfe1e6' }}>
+                      <td style={{ padding: '12px' }}>#{ticket.id}</td>
+                      <td style={{ padding: '12px', maxWidth: '300px' }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.description}</div>
+                      </td>
+                      <td style={{ padding: '12px', color: '#42526e' }}>
+                        {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : '-'}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            background: getPriorityBadgeColor(ticket.priority) + '20',
+                            color: getPriorityBadgeColor(ticket.priority)
+                          }}
+                        >
+                          {ticket.priority}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            background: getStatusBadgeColor(ticket.status) + '20',
+                            color: getStatusBadgeColor(ticket.status)
+                          }}
+                        >
+                          {ticket.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#6b778c', fontSize: '14px' }}>{new Date(ticket.created_at).toLocaleDateString()}</td>
+                      <td style={{ padding: '12px' }}>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => navigate(`/tickets/${ticket.id}`)}
+                          style={{ padding: '6px 12px', fontSize: '14px' }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="show-mobile" style={{ display: 'grid', gap: '10px' }}>
+              {tickets.map((ticket) => (
+                <div key={ticket.id} style={{ border: '1px solid #dfe1e6', borderRadius: '8px', padding: '12px' }}>
+                  <div className="flex justify-between items-center" style={{ marginBottom: '10px' }}>
+                    <strong>#{ticket.id}</strong>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => navigate(`/tickets/${ticket.id}`)}
+                      style={{ padding: '4px 10px', fontSize: '12px' }}
+                    >
+                      View
+                    </button>
+                  </div>
+                  <div style={{ marginBottom: '10px', lineHeight: 1.4 }}>{ticket.description}</div>
+                  <div style={{ fontSize: '13px', color: '#6b778c', marginBottom: '6px' }}>
+                    {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : '-'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
                         padding: '4px 8px',
                         borderRadius: '4px',
                         fontSize: '12px',
                         fontWeight: '500',
                         background: getPriorityBadgeColor(ticket.priority) + '20',
                         color: getPriorityBadgeColor(ticket.priority)
-                      }}>
-                        {ticket.priority}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{
+                      }}
+                    >
+                      {ticket.priority}
+                    </span>
+                    <span
+                      style={{
                         padding: '4px 8px',
                         borderRadius: '4px',
                         fontSize: '12px',
                         fontWeight: '500',
                         background: getStatusBadgeColor(ticket.status) + '20',
                         color: getStatusBadgeColor(ticket.status)
-                      }}>
-                        {ticket.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', color: '#6b778c', fontSize: '14px' }}>
-                      {new Date(ticket.created_at).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => navigate(`/tickets/${ticket.id}`)}
-                        style={{ padding: '6px 12px', fontSize: '14px' }}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      }}
+                    >
+                      {ticket.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div style={{ color: '#6b778c', fontSize: '12px' }}>{new Date(ticket.created_at).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -34,20 +34,20 @@ const TicketList = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
+      <div className="page-header">
         <h2>Tickets</h2>
-        <div className="flex gap-2">
-           <select 
-             value={filter} 
-             onChange={(e) => setFilter(e.target.value)}
-             style={{ width: '150px' }}
-           >
-             <option value="">All Tickets</option>
-             <option value="OPEN">Open</option>
-             <option value="IN_PROGRESS">In Progress</option>
-             <option value="RESOLVED">Resolved</option>
-           </select>
-           <Link to="/tickets/new" className="btn">Create Ticket</Link>
+        <div className="page-header-actions">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ width: '150px' }}
+          >
+            <option value="">All Tickets</option>
+            <option value="OPEN">Open</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+          <Link to="/tickets/new" className="btn">Create Ticket</Link>
         </div>
       </div>
 

@@ -91,7 +91,17 @@ node create_user.js <username> <password> <role> <full name>
 ## Key Features
 - Auth and registration
 - Ticket creation, assignment, status updates
+- Ticket categories and subcategories
+- Dynamic custom ticket fields by category/subcategory
 - Ticket activity history
 - Internal notes/work log
 - Admin dashboard and reports
 - Staff and end-user management (admin)
+
+## After Pulling Latest Changes
+If your database already exists, run:
+```bash
+cd server
+npm run db:migrate
+```
+This upgrades schema and seeds default ticket categories/subcategories/custom fields.

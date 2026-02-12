@@ -11,6 +11,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Reports from './pages/Reports';
 import UserList from './pages/UserList';
 import EndUserList from './pages/EndUserList';
+import TicketMetaAdmin from './pages/TicketMetaAdmin';
 import Register from './pages/Register';
 import EndUserPortal from './pages/EndUserPortal';
 
@@ -36,7 +37,7 @@ const ProtectedRoute = () => {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="app-shell">
       <NavBar />
       <div className="app-shell-content container">
         <Outlet />
@@ -116,6 +117,14 @@ function App() {
               element={(
                 <RoleRoute roles={['ADMIN']}>
                   <Reports />
+                </RoleRoute>
+              )}
+            />
+            <Route
+              path="/ticket-settings"
+              element={(
+                <RoleRoute roles={['ADMIN']}>
+                  <TicketMetaAdmin />
                 </RoleRoute>
               )}
             />

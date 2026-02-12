@@ -112,56 +112,55 @@ const EndUserList = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
+      <div className="page-header">
         <h2>End User Management</h2>
         <button onClick={openAddModal} className="btn">Add New End User</button>
       </div>
 
       <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Username</th>
-              <th>Department</th>
-              <th>Phone</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td style={{ fontWeight: '500' }}>{u.name}</td>
-                <td style={{ color: '#6b778c' }}>{u.username}</td>
-                <td>{u.department || '-'}</td>
-                <td>{u.phone || '-'}</td>
-                <td>
-                  <button 
-                    onClick={() => openEditModal(u)} 
-                    className="btn-secondary" 
-                    style={{ marginRight: '10px', fontSize: '12px', padding: '4px 8px' }}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(u.id)} 
-                    style={{ background: 'none', border: 'none', color: '#DE350B', fontSize: '12px', textDecoration: 'underline' }}
-                  >
-                    Delete
-                  </button>
-                </td>
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Department</th>
+                <th>Phone</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id}>
+                  <td style={{ fontWeight: '500' }}>{u.name}</td>
+                  <td style={{ color: '#6b778c' }}>{u.username}</td>
+                  <td>{u.department || '-'}</td>
+                  <td>{u.phone || '-'}</td>
+                  <td>
+                    <button
+                      onClick={() => openEditModal(u)}
+                      className="btn-secondary"
+                      style={{ marginRight: '10px', fontSize: '12px', padding: '4px 8px' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      style={{ background: 'none', border: 'none', color: '#DE350B', fontSize: '12px', textDecoration: 'underline' }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div className="card" style={{ width: '450px', maxWidth: '90%' }}>
+        <div className="modal-overlay">
+          <div className="card modal-card" style={{ width: 'min(450px, 100%)' }}>
             <h3 style={{ marginTop: 0 }}>{editingUser ? 'Edit End User' : 'Add New End User'}</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -186,8 +185,8 @@ const EndUserList = () => {
                 />
               </div>
 
-              <div className="flex gap-2">
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-row">
+                <div className="form-group">
                   <label>Department</label>
                   <input 
                     type="text" 
@@ -196,7 +195,7 @@ const EndUserList = () => {
                     placeholder="e.g. Sales"
                   />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group">
                   <label>Phone</label>
                   <input 
                     type="text" 
@@ -218,7 +217,7 @@ const EndUserList = () => {
                 />
               </div>
 
-              <div className="flex justify-between" style={{ marginTop: '20px' }}>
+              <div className="form-row" style={{ marginTop: '20px', justifyContent: 'space-between' }}>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" disabled={submitting}>Cancel</button>
                 <button type="submit" className="btn" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save End User'}

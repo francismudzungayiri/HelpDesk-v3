@@ -44,11 +44,13 @@ const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/tickets');
 const userRoutes = require('./routes/users');
 const statsRoutes = require('./routes/stats');
+const ticketMetaRoutes = require('./routes/ticketMeta');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/ticket-meta', ticketMetaRoutes);
 
 app.get('/', (req, res) => {
   res.send('HelpDesky API v1.0 is running');

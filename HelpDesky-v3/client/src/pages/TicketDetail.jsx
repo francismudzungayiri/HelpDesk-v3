@@ -102,6 +102,12 @@ const TicketDetail = () => {
     }
   };
 
+  const formatCustomFieldValue = (value) => {
+    if (value === null || value === undefined || value === '') return '-';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
+  };
+
   if (loading) return <div>Loading details...</div>;
   if (!ticket) return <div>Ticket not found</div>;
 
@@ -111,10 +117,10 @@ const TicketDetail = () => {
         <button onClick={() => navigate(isEndUser ? '/portal' : '/')} className="btn-secondary">← Back</button>
       </div>
 
-      <div className="flex gap-2" style={{ alignItems: 'flex-start' }}>
+      <div className="content-split">
         <div style={{ flex: 2 }}>
           <div className="card" style={{ marginBottom: '20px' }}>
-            <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
+            <div className="page-header" style={{ marginBottom: '20px' }}>
               <h2 style={{ margin: 0 }}>Ticket #{ticket.id}</h2>
               <span className={`badge priority-${ticket.priority}`} style={{ fontSize: '14px', padding: '4px 8px' }}>
                 {ticket.priority} Priority
@@ -131,6 +137,27 @@ const TicketDetail = () => {
               <h4 style={{ color: '#6b778c', marginBottom: '5px' }}>Issue Description</h4>
               <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{ticket.description}</p>
             </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ color: '#6b778c', marginBottom: '5px' }}>Classification</h4>
+              <div style={{ fontSize: '15px' }}>
+                {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : 'Uncategorized'}
+              </div>
+            </div>
+
+            {ticket.custom_fields?.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ color: '#6b778c', marginBottom: '8px' }}>Custom Details</h4>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {ticket.custom_fields.map((field) => (
+                    <div key={field.field_definition_id} className="ticket-field-row">
+                      <span style={{ color: '#6b778c' }}>{field.label}</span>
+                      <span style={{ fontWeight: 500 }}>{formatCustomFieldValue(field.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ fontSize: '12px', color: '#6b778c', borderTop: '1px solid #dfe1e6', paddingTop: '15px' }}>
               Created: {new Date(ticket.created_at).toLocaleString()}
@@ -160,7 +187,7 @@ const TicketDetail = () => {
                 ))}
               </div>
 
-              <form onSubmit={handleAddNote} style={{ display: 'flex', gap: '10px' }}>
+              <form onSubmit={handleAddNote} className="form-row">
                 <textarea
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
@@ -172,7 +199,7 @@ const TicketDetail = () => {
                   type="submit"
                   className="btn-secondary"
                   disabled={addingNote || !newNote.trim()}
-                  style={{ height: 'fit-content' }}
+                  style={{ height: 'fit-content', whiteSpace: 'nowrap' }}
                 >
                   Add Note
                 </button>
@@ -186,8 +213,8 @@ const TicketDetail = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {history.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No activities recorded yet.</div>}
                 {history.map((item) => (
-                  <div key={item.id} style={{ display: 'flex', gap: '15px', paddingBottom: '15px', borderBottom: '1px solid #f4f5f7' }}>
-                    <div style={{ minWidth: '100px', fontSize: '12px', color: '#6b778c' }}>{timeAgo(item.created_at)}</div>
+                  <div key={item.id} className="ticket-history-entry">
+                    <div className="ticket-history-time">{timeAgo(item.created_at)}</div>
                     <div style={{ flex: 1, fontSize: '14px' }}>
                       <strong>{item.user_name}</strong>
                       {item.action === 'STATUS_CHANGE' && (
@@ -208,7 +235,7 @@ const TicketDetail = () => {
           )}
         </div>
 
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="card">
             <h3 style={{ marginTop: 0 }}>Actions</h3>
 

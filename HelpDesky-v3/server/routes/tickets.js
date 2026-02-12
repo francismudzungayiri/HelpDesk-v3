@@ -5,17 +5,26 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-const staffTicketCreateSchema = z.object({
-  caller_name: z.string().min(1, 'Caller name is required'),
-  department: z.string().min(1, 'Department is required'),
-  phone: z.string().optional(),
-  description: z.string().min(1, 'Description is required'),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH'])
+const customFieldInputSchema = z.object({
+  field_definition_id: z.coerce.number().int().positive(),
+  value: z.any().optional().nullable()
 });
 
-const endUserTicketCreateSchema = z.object({
+const baseTicketCreateSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  category_id: z.coerce.number().int().positive(),
+  subcategory_id: z.coerce.number().int().positive(),
+  custom_fields: z.array(customFieldInputSchema).optional().default([])
+});
+
+const staffTicketCreateSchema = baseTicketCreateSchema.extend({
+  caller_name: z.string().min(1, 'Caller name is required'),
+  department: z.string().min(1, 'Department is required'),
+  phone: z.string().optional()
+});
+
+const endUserTicketCreateSchema = baseTicketCreateSchema.extend({
   phone: z.string().optional()
 });
 
@@ -29,6 +38,12 @@ const noteSchema = z.object({
   note: z.string().min(1, 'Note content is required')
 });
 
+const badRequest = (message) => {
+  const err = new Error(message);
+  err.statusCode = 400;
+  return err;
+};
+
 const canAccessTicket = (user, ticket) => {
   if (user.role !== 'END_USER') return true;
   return ticket.created_by === user.id;
@@ -39,14 +54,153 @@ const getTicketAccessRow = async (ticketId) => {
   return result.rows[0] || null;
 };
 
+const validateCategoryAndSubcategory = async (client, categoryId, subcategoryId) => {
+  const result = await client.query(
+    `
+    SELECT
+      c.id AS category_id,
+      c.name AS category_name,
+      s.id AS subcategory_id,
+      s.name AS subcategory_name
+    FROM ticket_categories c
+    JOIN ticket_subcategories s ON s.id = $2 AND s.category_id = c.id
+    WHERE c.id = $1
+      AND c.is_active = true
+      AND s.is_active = true
+  `,
+    [categoryId, subcategoryId]
+  );
+
+  if (result.rowCount === 0) {
+    throw badRequest('Invalid category/subcategory selection');
+  }
+
+  return result.rows[0];
+};
+
+const getFieldDefinitionsForScope = async (client, categoryId, subcategoryId) => {
+  const result = await client.query(
+    `
+    SELECT
+      id,
+      field_key,
+      label,
+      field_type,
+      required,
+      options_json,
+      sort_order
+    FROM ticket_custom_field_definitions
+    WHERE category_id = $1
+      AND is_active = true
+      AND (subcategory_id IS NULL OR subcategory_id = $2)
+    ORDER BY sort_order, id
+  `,
+    [categoryId, subcategoryId]
+  );
+
+  return result.rows;
+};
+
+const normalizeCustomFields = (definitions, submittedFields) => {
+  const definitionMap = new Map(definitions.map((definition) => [definition.id, definition]));
+  const submittedMap = new Map();
+
+  for (const item of submittedFields) {
+    if (submittedMap.has(item.field_definition_id)) {
+      throw badRequest('Duplicate custom field submission detected');
+    }
+    submittedMap.set(item.field_definition_id, item.value);
+  }
+
+  for (const fieldId of submittedMap.keys()) {
+    if (!definitionMap.has(fieldId)) {
+      throw badRequest('One or more custom fields are not valid for this category/subcategory');
+    }
+  }
+
+  const normalized = [];
+
+  for (const definition of definitions) {
+    const rawValue = submittedMap.get(definition.id);
+    const isMissing = rawValue === undefined || rawValue === null || (typeof rawValue === 'string' && rawValue.trim() === '');
+
+    if (isMissing) {
+      if (definition.required) {
+        throw badRequest(`${definition.label} is required`);
+      }
+      continue;
+    }
+
+    let valueText = null;
+    let valueJson = null;
+
+    if (definition.field_type === 'text') {
+      valueText = String(rawValue).trim();
+      if (!valueText) {
+        if (definition.required) {
+          throw badRequest(`${definition.label} is required`);
+        }
+        continue;
+      }
+      valueJson = valueText;
+    } else if (definition.field_type === 'number') {
+      const parsed = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+      if (!Number.isFinite(parsed)) {
+        throw badRequest(`${definition.label} must be a valid number`);
+      }
+      valueText = String(parsed);
+      valueJson = parsed;
+    } else if (definition.field_type === 'date') {
+      const parsedDate = new Date(String(rawValue));
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw badRequest(`${definition.label} must be a valid date`);
+      }
+      const dateValue = parsedDate.toISOString().split('T')[0];
+      valueText = dateValue;
+      valueJson = dateValue;
+    } else if (definition.field_type === 'checkbox') {
+      if (typeof rawValue !== 'boolean') {
+        throw badRequest(`${definition.label} must be true or false`);
+      }
+      valueText = String(rawValue);
+      valueJson = rawValue;
+    } else if (definition.field_type === 'select') {
+      const value = String(rawValue).trim();
+      const options = Array.isArray(definition.options_json) ? definition.options_json : [];
+      if (!options.includes(value)) {
+        throw badRequest(`${definition.label} must match one of the allowed options`);
+      }
+      valueText = value;
+      valueJson = value;
+    } else {
+      throw badRequest(`Unsupported field type: ${definition.field_type}`);
+    }
+
+    normalized.push({
+      field_definition_id: definition.id,
+      value_text: valueText,
+      value_json: valueJson
+    });
+  }
+
+  return normalized;
+};
+
 // GET /api/tickets - List all tickets (with filters)
 router.get('/', authenticateToken, async (req, res) => {
   const { status, sort, assignee_id } = req.query;
 
   let sql = `
-    SELECT t.*, u.name as assignee_name, u.username as assignee_username
+    SELECT
+      t.*,
+      u.name as assignee_name,
+      u.username as assignee_username,
+      c.name as category_name,
+      s.name as subcategory_name
     FROM tickets t
     LEFT JOIN users u ON t.assignee_id = u.id
+    LEFT JOIN ticket_categories c ON t.category_id = c.id
+    LEFT JOIN ticket_subcategories s ON t.subcategory_id = s.id
     WHERE 1=1
   `;
 
@@ -95,9 +249,16 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/tickets/:id - Get single ticket details
 router.get('/:id', authenticateToken, async (req, res) => {
   const sql = `
-    SELECT t.*, u.name as assignee_name, u.username as assignee_username
+    SELECT
+      t.*,
+      u.name as assignee_name,
+      u.username as assignee_username,
+      c.name as category_name,
+      s.name as subcategory_name
     FROM tickets t
     LEFT JOIN users u ON t.assignee_id = u.id
+    LEFT JOIN ticket_categories c ON t.category_id = c.id
+    LEFT JOIN ticket_subcategories s ON t.subcategory_id = s.id
     WHERE t.id = $1
   `;
 
@@ -113,6 +274,43 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
+    if (ticket.category_id && ticket.subcategory_id) {
+      const customFieldRows = await pool.query(
+        `
+        SELECT
+          d.id AS field_definition_id,
+          d.field_key,
+          d.label,
+          d.field_type,
+          d.required,
+          d.options_json,
+          v.value_text,
+          v.value_json
+        FROM ticket_custom_field_definitions d
+        LEFT JOIN ticket_custom_field_values v
+          ON v.field_definition_id = d.id
+         AND v.ticket_id = $1
+        WHERE d.category_id = $2
+          AND d.is_active = true
+          AND (d.subcategory_id IS NULL OR d.subcategory_id = $3)
+        ORDER BY d.sort_order, d.id
+      `,
+        [ticket.id, ticket.category_id, ticket.subcategory_id]
+      );
+
+      ticket.custom_fields = customFieldRows.rows.map((row) => ({
+        field_definition_id: row.field_definition_id,
+        field_key: row.field_key,
+        label: row.label,
+        field_type: row.field_type,
+        required: row.required,
+        options: Array.isArray(row.options_json) ? row.options_json : [],
+        value: row.value_json !== null ? row.value_json : row.value_text
+      }));
+    } else {
+      ticket.custom_fields = [];
+    }
+
     res.json(ticket);
   } catch (err) {
     console.error('Get ticket failed:', err);
@@ -122,60 +320,119 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 // POST /api/tickets - Create new ticket
 router.post('/', authenticateToken, async (req, res) => {
+  let client;
+
   try {
-    let ticketData;
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    let payload;
 
     if (req.user.role === 'END_USER') {
-      const payload = endUserTicketCreateSchema.parse(req.body);
-      const userResult = await pool.query('SELECT name, department, phone FROM users WHERE id = $1', [req.user.id]);
+      payload = endUserTicketCreateSchema.parse(req.body);
+
+      const userResult = await client.query('SELECT name, department, phone FROM users WHERE id = $1', [req.user.id]);
       const userProfile = userResult.rows[0];
 
       if (!userProfile) {
-        return res.status(404).json({ message: 'User profile not found' });
+        throw badRequest('User profile not found');
       }
 
       if (!userProfile.department) {
-        return res.status(400).json({ message: 'Your profile is missing a department. Contact support.' });
+        throw badRequest('Your profile is missing a department. Contact support.');
       }
 
-      ticketData = {
+      payload = {
+        ...payload,
         caller_name: userProfile.name,
         department: userProfile.department,
-        phone: userProfile.phone || payload.phone,
-        description: payload.description,
-        priority: payload.priority
+        phone: userProfile.phone || payload.phone
       };
     } else {
-      ticketData = staffTicketCreateSchema.parse(req.body);
+      payload = staffTicketCreateSchema.parse(req.body);
     }
 
-    const sql = `
-      INSERT INTO tickets (caller_name, department, phone, description, priority, status, created_by)
-      VALUES ($1, $2, $3, $4, $5, 'OPEN', $6)
-      RETURNING id
-    `;
+    await validateCategoryAndSubcategory(client, payload.category_id, payload.subcategory_id);
 
-    const result = await pool.query(sql, [
-      ticketData.caller_name,
-      ticketData.department,
-      ticketData.phone,
-      ticketData.description,
-      ticketData.priority,
-      req.user.id
-    ]);
+    const definitions = await getFieldDefinitionsForScope(client, payload.category_id, payload.subcategory_id);
+    const normalizedCustomFields = normalizeCustomFields(definitions, payload.custom_fields || []);
+
+    const ticketResult = await client.query(
+      `
+      INSERT INTO tickets (
+        caller_name,
+        department,
+        phone,
+        description,
+        priority,
+        status,
+        created_by,
+        category_id,
+        subcategory_id
+      )
+      VALUES ($1, $2, $3, $4, $5, 'OPEN', $6, $7, $8)
+      RETURNING id
+    `,
+      [
+        payload.caller_name,
+        payload.department,
+        payload.phone,
+        payload.description,
+        payload.priority,
+        req.user.id,
+        payload.category_id,
+        payload.subcategory_id
+      ]
+    );
+
+    const ticketId = ticketResult.rows[0].id;
+
+    for (const fieldValue of normalizedCustomFields) {
+      await client.query(
+        `
+        INSERT INTO ticket_custom_field_values (
+          ticket_id,
+          field_definition_id,
+          value_text,
+          value_json
+        )
+        VALUES ($1, $2, $3, $4::jsonb)
+      `,
+        [
+          ticketId,
+          fieldValue.field_definition_id,
+          fieldValue.value_text,
+          fieldValue.value_json === null ? null : JSON.stringify(fieldValue.value_json)
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
 
     res.status(201).json({
-      id: result.rows[0].id,
+      id: ticketId,
       message: 'Ticket created',
       status: 'OPEN'
     });
   } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+
     if (err instanceof z.ZodError) {
       return res.status(400).json({ errors: err.errors.map((e) => e.message) });
     }
 
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+
     console.error('Create ticket failed:', err);
     res.status(500).json({ message: 'Failed to create ticket' });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 

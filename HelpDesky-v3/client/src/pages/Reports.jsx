@@ -56,14 +56,14 @@ const Reports = () => {
 
   return (
     <div>
-       <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
+       <div className="page-header">
         <h2>System Reports</h2>
         <button onClick={downloadCSV} className="btn-secondary">Export to CSV</button>
       </div>
 
-      <div className="flex gap-2" style={{ marginBottom: '30px' }}>
+      <div className="card-grid cols-2" style={{ marginBottom: '30px' }}>
         {/* Status Chart */}
-        <div className="card" style={{ flex: 1 }}>
+        <div className="card">
           <h3>Tickets by Status</h3>
           <div style={{ marginTop: '20px' }}>
             {data.status_distribution.map((item, idx) => (
@@ -86,7 +86,7 @@ const Reports = () => {
         </div>
 
         {/* Priority Chart */}
-        <div className="card" style={{ flex: 1 }}>
+        <div className="card">
            <h3>Tickets by Priority</h3>
            <div style={{ marginTop: '20px' }}>
             {data.priority_distribution.map((item, idx) => (
