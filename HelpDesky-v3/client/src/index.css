@@ -186,6 +186,24 @@ textarea:focus {
   background: rgba(9, 30, 66, 0.13);
 }
 
+.btn-danger {
+  background: #ffebe6;
+  color: #bf2600;
+  border: 1px solid #ffbdad;
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-weight: 500;
+}
+
+.btn-danger:hover {
+  background: #ffdad1;
+}
+
+.btn-danger:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Utilities */
 .card {
   background: var(--white);
@@ -420,6 +438,109 @@ tr:hover {
   cursor: pointer;
 }
 
+.profile-layout {
+  max-width: 760px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile-header-meta h2 {
+  margin: 0 0 4px 0;
+}
+
+.profile-secondary-row {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.work-status-badge {
+  margin-top: 8px;
+}
+
+.sidebar-work-status {
+  margin-top: 6px;
+}
+
+.work-status-badge.available {
+  background: #e3fcef;
+  color: #006644;
+}
+
+.work-status-badge.on-leave {
+  background: #ffebe6;
+  color: #bf2600;
+}
+
+.work-status-badge.at-workshop {
+  background: #fffae6;
+  color: #ff8b00;
+}
+
+.profile-status-fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.profile-status-fieldset legend {
+  padding: 0;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.profile-status-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--white);
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.profile-status-option input {
+  margin-top: 3px;
+}
+
+.profile-status-option.selected {
+  border-color: var(--primary);
+  background: #e6effc;
+}
+
+.profile-status-option-label {
+  font-weight: 600;
+}
+
+.profile-status-option-description {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.profile-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-saved-indicator {
+  color: var(--success);
+  font-size: 14px;
+  font-weight: 500;
+}
+
 @media (max-width: 1080px) {
   .app-sidebar {
     width: 210px !important;
@@ -538,5 +659,10 @@ tr:hover {
 
   .hide-mobile {
     display: none !important;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

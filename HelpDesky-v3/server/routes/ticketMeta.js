@@ -30,6 +30,42 @@ const fieldCreateSchema = z.object({
   sort_order: z.number().int().min(0).optional()
 });
 
+const fieldDeleteParamsSchema = z.object({
+  id: z.coerce.number().int().positive()
+});
+
+const deleteFieldById = async (req, res) => {
+  try {
+    const { id } = fieldDeleteParamsSchema.parse(req.params);
+
+    const result = await pool.query(
+      `
+      UPDATE ticket_custom_field_definitions
+      SET is_active = false
+      WHERE id = $1
+        AND is_active = true
+      RETURNING id, field_key, label
+    `,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Field not found or already deleted' });
+    }
+
+    return res.json({
+      message: 'Custom field deleted',
+      field: result.rows[0]
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+    }
+    console.error('Delete custom field failed:', err);
+    return res.status(500).json({ message: 'Failed to delete custom field' });
+  }
+};
+
 router.get('/categories', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -267,5 +303,8 @@ router.post('/fields', authenticateToken, authorizeRole('ADMIN'), async (req, re
     res.status(500).json({ message: 'Failed to create custom field' });
   }
 });
+
+router.delete('/fields/:id', authenticateToken, authorizeRole('ADMIN'), deleteFieldById);
+router.post('/fields/:id/delete', authenticateToken, authorizeRole('ADMIN'), deleteFieldById);
 
 module.exports = router;

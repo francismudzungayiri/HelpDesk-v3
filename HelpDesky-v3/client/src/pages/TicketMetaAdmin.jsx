@@ -44,6 +44,7 @@ const TicketMetaAdmin = () => {
   const [savingCategory, setSavingCategory] = useState(false);
   const [savingSubcategory, setSavingSubcategory] = useState(false);
   const [savingField, setSavingField] = useState(false);
+  const [deletingFieldId, setDeletingFieldId] = useState(null);
 
   const selectedCategoryName = useMemo(() => {
     const category = categories.find((item) => String(item.id) === String(subcategoryCategoryId));
@@ -256,6 +257,38 @@ const TicketMetaAdmin = () => {
       toast.error(message, { id: toastId });
     } finally {
       setSavingField(false);
+    }
+  };
+
+  const handleDeleteField = async (field) => {
+    const confirmed = window.confirm(`Delete custom field "${field.label}" (${field.field_key})?`);
+    if (!confirmed) return;
+
+    setDeletingFieldId(field.id);
+    const toastId = toast.loading('Deleting custom field...');
+
+    try {
+      try {
+        await api.delete(`/ticket-meta/fields/${field.id}`);
+      } catch (deleteErr) {
+        const status = deleteErr.response?.status;
+        const message = String(deleteErr.response?.data?.message || '').toLowerCase();
+        const shouldTryFallback = status === 404 || status === 405 || message.includes('route not found');
+
+        if (!shouldTryFallback) {
+          throw deleteErr;
+        }
+
+        await api.post(`/ticket-meta/fields/${field.id}/delete`);
+      }
+
+      toast.success('Custom field deleted', { id: toastId });
+      await loadFields(fieldCategoryId, fieldViewSubcategoryId);
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Failed to delete custom field';
+      toast.error(message, { id: toastId });
+    } finally {
+      setDeletingFieldId(null);
     }
   };
 
@@ -539,12 +572,13 @@ const TicketMetaAdmin = () => {
                   <th>Scope</th>
                   <th>Required</th>
                   <th>Options</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {fields.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ color: '#6b778c' }}>No fields in this scope yet.</td>
+                    <td colSpan="7" style={{ color: '#6b778c' }}>No fields in this scope yet.</td>
                   </tr>
                 ) : (
                   fields.map((field) => (
@@ -555,6 +589,16 @@ const TicketMetaAdmin = () => {
                       <td>{field.subcategory_name || 'All subcategories'}</td>
                       <td>{field.required ? 'Yes' : 'No'}</td>
                       <td>{field.field_type === 'select' ? (field.options || []).join(', ') || '-' : '-'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => handleDeleteField(field)}
+                          disabled={deletingFieldId === field.id}
+                        >
+                          {deletingFieldId === field.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}

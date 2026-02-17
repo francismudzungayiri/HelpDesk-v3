@@ -15,8 +15,10 @@ const TicketDetail = () => {
   const [ticket, setTicket] = useState(null);
   const [users, setUsers] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [comments, setComments] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [updating, setUpdating] = useState(false);
 
   const [status, setStatus] = useState('');
@@ -25,9 +27,12 @@ const TicketDetail = () => {
 
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [addingComment, setAddingComment] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
 
     try {
       const ticketRes = await api.get(`/tickets/${id}`);
@@ -35,28 +40,75 @@ const TicketDetail = () => {
       setStatus(ticketRes.data.status);
       setAssigneeId(ticketRes.data.assignee_id || '');
       setResolutionNote(ticketRes.data.resolution_note || '');
-
-      if (!isEndUser) {
-        const [usersRes, notesRes, historyRes] = await Promise.all([
-          api.get('/users/staff'),
-          api.get(`/tickets/${id}/notes`),
-          api.get(`/tickets/${id}/history`)
-        ]);
-        setUsers(usersRes.data);
-        setNotes(notesRes.data);
-        setHistory(historyRes.data);
-      } else {
-        setUsers([]);
-        setNotes([]);
-        setHistory([]);
-      }
     } catch (err) {
       console.error('Error fetching ticket detail:', err);
-      toast.error(err.response?.data?.message || 'Failed to load ticket details');
+      const message = err.response?.data?.message || 'Failed to load ticket details';
+      toast.error(message);
+      setLoadError(message);
       setTicket(null);
-    } finally {
+      setUsers([]);
+      setNotes([]);
+      setComments([]);
+      setHistory([]);
       setLoading(false);
+      return;
     }
+
+    if (!isEndUser) {
+      const [usersRes, notesRes, historyRes, commentsRes] = await Promise.allSettled([
+        api.get('/users/staff'),
+        api.get(`/tickets/${id}/notes`),
+        api.get(`/tickets/${id}/history`),
+        api.get(`/tickets/${id}/comments`)
+      ]);
+
+      if (usersRes.status === 'fulfilled') {
+        setUsers(usersRes.value.data);
+      } else {
+        console.error('Error fetching staff users:', usersRes.reason);
+        setUsers([]);
+      }
+
+      if (notesRes.status === 'fulfilled') {
+        setNotes(notesRes.value.data);
+      } else {
+        console.error('Error fetching ticket notes:', notesRes.reason);
+        setNotes([]);
+      }
+
+      if (historyRes.status === 'fulfilled') {
+        setHistory(historyRes.value.data);
+      } else {
+        console.error('Error fetching ticket history:', historyRes.reason);
+        setHistory([]);
+      }
+
+      if (commentsRes.status === 'fulfilled') {
+        setComments(commentsRes.value.data);
+      } else {
+        console.error('Error fetching ticket comments:', commentsRes.reason);
+        setComments([]);
+      }
+
+      if ([usersRes, notesRes, historyRes, commentsRes].some((result) => result.status === 'rejected')) {
+        toast.error('Ticket loaded, but some related details could not be loaded');
+      }
+    } else {
+      setUsers([]);
+      setNotes([]);
+      setHistory([]);
+
+      try {
+        const commentsRes = await api.get(`/tickets/${id}/comments`);
+        setComments(commentsRes.data);
+      } catch (err) {
+        console.error('Error fetching ticket comments:', err);
+        setComments([]);
+        toast.error('Ticket loaded, but comments could not be loaded');
+      }
+    }
+
+    setLoading(false);
   }, [id, isEndUser]);
 
   useEffect(() => {
@@ -102,6 +154,25 @@ const TicketDetail = () => {
     }
   };
 
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    setAddingComment(true);
+    try {
+      await api.post(`/tickets/${id}/comments`, { comment: newComment });
+      toast.success('Comment added');
+      setNewComment('');
+      const res = await api.get(`/tickets/${id}/comments`);
+      setComments(res.data);
+    } catch (err) {
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to add comment'];
+      messages.forEach((msg) => toast.error(msg));
+    } finally {
+      setAddingComment(false);
+    }
+  };
+
   const formatCustomFieldValue = (value) => {
     if (value === null || value === undefined || value === '') return '-';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -109,7 +180,7 @@ const TicketDetail = () => {
   };
 
   if (loading) return <div>Loading details...</div>;
-  if (!ticket) return <div>Ticket not found</div>;
+  if (!ticket) return <div>{loadError || 'Ticket not found'}</div>;
 
   return (
     <div>
@@ -163,6 +234,57 @@ const TicketDetail = () => {
               Created: {new Date(ticket.created_at).toLocaleString()}
               {ticket.updated_at !== ticket.created_at && <span> • Updated: {new Date(ticket.updated_at).toLocaleString()}</span>}
             </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ marginTop: 0 }}>Comments</h3>
+
+            <div style={{ marginBottom: '20px' }}>
+              {comments.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No comments yet.</div>}
+              {comments.map((comment) => (
+                <div key={comment.id} style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                  <Avatar name={comment.user_name} size={32} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{comment.user_name}</span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          color: '#42526e',
+                          background: '#ebecf0',
+                          borderRadius: '12px',
+                          padding: '2px 8px'
+                        }}
+                      >
+                        {comment.user_role}
+                      </span>
+                      <span style={{ color: '#6b778c', fontSize: '12px' }}>{timeAgo(comment.created_at)}</span>
+                    </div>
+                    <div style={{ background: '#f4f5f7', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+                      {comment.comment}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddComment} className="form-row">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment for this ticket..."
+                rows="2"
+                style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dfe1e6' }}
+              />
+              <button
+                type="submit"
+                className="btn-secondary"
+                disabled={addingComment || !newComment.trim()}
+                style={{ height: 'fit-content', whiteSpace: 'nowrap' }}
+              >
+                Add Comment
+              </button>
+            </form>
           </div>
 
           {!isEndUser && (

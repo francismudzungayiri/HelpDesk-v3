@@ -14,6 +14,7 @@ import EndUserList from './pages/EndUserList';
 import TicketMetaAdmin from './pages/TicketMetaAdmin';
 import Register from './pages/Register';
 import EndUserPortal from './pages/EndUserPortal';
+import Profile from './pages/Profile';
 
 const ProtectedRoute = () => {
   const { user, loading } = useAuth();
@@ -88,6 +89,7 @@ function App() {
             />
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
+            <Route path="/profile" element={<Profile />} />
             <Route
               path="/admin"
               element={(

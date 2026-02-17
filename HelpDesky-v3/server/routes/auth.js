@@ -6,6 +6,8 @@ const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
+const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
+
 // Validation Schemas
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -43,7 +45,7 @@ router.post('/login', async (req, res) => {
     }
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     console.error('Login failed:', err);
     res.status(500).json({ message: 'Login failed' });
@@ -90,7 +92,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ token, user });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     console.error('Register failed:', err);
     res.status(500).json({ message: 'Registration failed' });

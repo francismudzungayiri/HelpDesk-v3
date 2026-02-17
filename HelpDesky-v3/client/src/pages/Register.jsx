@@ -37,11 +37,11 @@ const Register = () => {
 
     try {
       const response = await api.post('/auth/register', {
-        username: formData.username,
+        username: formData.username.trim(),
         password: formData.password,
-        name: formData.name,
-        department: formData.department,
-        phone: formData.phone
+        name: formData.name.trim(),
+        department: formData.department.trim(),
+        phone: formData.phone.trim()
       });
 
       toast.success('Account created! Welcome to HelpDesky.', { id: loadId });
@@ -61,7 +61,7 @@ const Register = () => {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      background: 'linear-gradient(135deg, #f1f1f1ff 0%, #ffffffff 100%)'
     }}>
       <div className="card" style={{ width: '100%', maxWidth: '450px', margin: '20px' }}>
         <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Create Account</h2>
@@ -78,6 +78,7 @@ const Register = () => {
               value={formData.username}
               onChange={handleChange}
               required
+              minLength={3}
               placeholder="Choose a username"
             />
           </div>
@@ -90,6 +91,7 @@ const Register = () => {
               value={formData.name}
               onChange={handleChange}
               required
+              minLength={2}
               placeholder="Your full name"
             />
           </div>
@@ -125,6 +127,7 @@ const Register = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              minLength={6}
               placeholder="At least 6 characters"
             />
           </div>

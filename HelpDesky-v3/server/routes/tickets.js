@@ -38,6 +38,10 @@ const noteSchema = z.object({
   note: z.string().min(1, 'Note content is required')
 });
 
+const commentSchema = z.object({
+  comment: z.string().min(1, 'Comment content is required')
+});
+
 const badRequest = (message) => {
   const err = new Error(message);
   err.statusCode = 400;
@@ -46,7 +50,15 @@ const badRequest = (message) => {
 
 const canAccessTicket = (user, ticket) => {
   if (user.role !== 'END_USER') return true;
-  return ticket.created_by === user.id;
+
+  const ticketOwnerId = Number(ticket.created_by);
+  const requesterId = Number(user.id);
+
+  if (!Number.isInteger(ticketOwnerId) || !Number.isInteger(requesterId)) {
+    return false;
+  }
+
+  return ticketOwnerId === requesterId;
 };
 
 const getTicketAccessRow = async (ticketId) => {
@@ -634,6 +646,80 @@ router.get('/:id/notes', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Get ticket notes failed:', err);
     res.status(500).json({ message: 'Failed to fetch ticket notes' });
+  }
+});
+
+// GET /api/tickets/:id/comments - Get shared comments for a ticket
+router.get('/:id/comments', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const ticket = await getTicketAccessRow(id);
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    if (!canAccessTicket(req.user, ticket)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        c.*,
+        u.name AS user_name,
+        u.username AS user_username,
+        u.role AS user_role
+      FROM ticket_comments c
+      LEFT JOIN users u ON c.user_id = u.id
+      WHERE c.ticket_id = $1
+      ORDER BY c.created_at DESC
+    `,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get ticket comments failed:', err);
+    res.status(500).json({ message: 'Failed to fetch ticket comments' });
+  }
+});
+
+// POST /api/tickets/:id/comments - Add a shared ticket comment (all roles)
+router.post('/:id/comments', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comment } = commentSchema.parse(req.body);
+
+    const ticket = await getTicketAccessRow(id);
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    if (!canAccessTicket(req.user, ticket)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO ticket_comments (ticket_id, user_id, comment) VALUES ($1, $2, $3) RETURNING *',
+      [id, req.user.id, comment]
+    );
+
+    const commentWithUser = {
+      ...result.rows[0],
+      user_name: req.user.name || req.user.username,
+      user_username: req.user.username,
+      user_role: req.user.role
+    };
+
+    res.status(201).json(commentWithUser);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+    }
+
+    console.error('Add ticket comment failed:', err);
+    res.status(500).json({ message: 'Failed to add comment' });
   }
 });
 

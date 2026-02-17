@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FiBarChart2, FiClipboard, FiGrid, FiPlusCircle, FiSettings, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { getWorkStatusMeta } from '../utils/profileStatus';
 
 const NavBar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, workStatus } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,9 +13,12 @@ const NavBar = () => {
   if (!user) return null;
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+  const workStatusMeta = getWorkStatusMeta(workStatus);
 
   const linkStyle = (path) => ({
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
     padding: '10px 15px',
     color: location.pathname === path ? '#0052cc' : '#42526e',
     backgroundColor: location.pathname === path ? '#e6effc' : 'transparent',
@@ -22,6 +27,13 @@ const NavBar = () => {
     fontWeight: location.pathname === path ? '500' : 'normal',
     textDecoration: 'none'
   });
+
+  const renderNavLink = (path, label, Icon) => (
+    <Link to={path} onClick={closeMobileMenu} style={linkStyle(path)}>
+      <Icon size={16} aria-hidden="true" />
+      <span>{label}</span>
+    </Link>
+  );
 
   return (
     <nav className={`app-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
@@ -53,26 +65,28 @@ const NavBar = () => {
 
           {user.role === 'END_USER' ? (
             <>
-              <Link to="/portal" onClick={closeMobileMenu} style={linkStyle('/portal')}>My Tickets</Link>
-              <Link to="/tickets/new" onClick={closeMobileMenu} style={linkStyle('/tickets/new')}>Submit Ticket</Link>
+              {renderNavLink('/portal', 'My Tickets', FiClipboard)}
+              {renderNavLink('/tickets/new', 'Submit Ticket', FiPlusCircle)}
+              {renderNavLink('/profile', 'Profile', FiUserCheck)}
             </>
           ) : (
             <>
-              <Link to="/" onClick={closeMobileMenu} style={linkStyle('/')}>All Tickets</Link>
-              <Link to="/tickets/new" onClick={closeMobileMenu} style={linkStyle('/tickets/new')}>Create Ticket</Link>
+              {renderNavLink('/', 'All Tickets', FiClipboard)}
+              {renderNavLink('/tickets/new', 'Create Ticket', FiPlusCircle)}
+              {renderNavLink('/profile', 'Profile', FiUserCheck)}
 
               {(user.role === 'ADMIN' || user.role === 'AGENT') && (
                 <div style={{ marginTop: '20px' }}>
                   <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
                     Management
                   </div>
-                  <Link to="/admin" onClick={closeMobileMenu} style={linkStyle('/admin')}>Dashboard</Link>
-                  <Link to="/users" onClick={closeMobileMenu} style={linkStyle('/users')}>Staff</Link>
-                  <Link to="/end-users" onClick={closeMobileMenu} style={linkStyle('/end-users')}>End Users</Link>
+                  {renderNavLink('/admin', 'Dashboard', FiGrid)}
+                  {renderNavLink('/users', 'Staff', FiUsers)}
+                  {renderNavLink('/end-users', 'End Users', FiUser)}
                   {user.role === 'ADMIN' && (
                     <>
-                      <Link to="/ticket-settings" onClick={closeMobileMenu} style={linkStyle('/ticket-settings')}>Ticket Settings</Link>
-                      <Link to="/reports" onClick={closeMobileMenu} style={linkStyle('/reports')}>Reports</Link>
+                      {renderNavLink('/ticket-settings', 'Ticket Settings', FiSettings)}
+                      {renderNavLink('/reports', 'Reports', FiBarChart2)}
                     </>
                   )}
                 </div>
@@ -103,6 +117,9 @@ const NavBar = () => {
                 {user.name || user.username}
               </div>
               <div style={{ fontSize: '12px', color: '#6b778c' }}>{user.role}</div>
+              <span className={`badge work-status-badge sidebar-work-status ${workStatusMeta.toneClass}`}>
+                {workStatusMeta.label}
+              </span>
             </div>
           </div>
           <button

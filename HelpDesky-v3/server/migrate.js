@@ -282,6 +282,16 @@ async function migrate() {
         )
       `);
 
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS ticket_comments (
+          id SERIAL PRIMARY KEY,
+          ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+          user_id INTEGER REFERENCES users(id),
+          comment TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       console.log('Adding new ticket columns and indexes...');
       await client.query(`
         ALTER TABLE tickets
@@ -295,6 +305,7 @@ async function migrate() {
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_category_id ON tickets(category_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_subcategory_id ON tickets(subcategory_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket_id ON ticket_comments(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_ticket_id ON ticket_custom_field_values(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_field_id ON ticket_custom_field_values(field_definition_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_def_category_id ON ticket_custom_field_definitions(category_id)');

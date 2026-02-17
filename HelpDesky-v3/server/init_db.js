@@ -303,6 +303,16 @@ async function initTables() {
       `);
 
       await client.query(`
+        CREATE TABLE IF NOT EXISTS ticket_comments (
+          id SERIAL PRIMARY KEY,
+          ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+          user_id INTEGER REFERENCES users(id),
+          comment TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
         CREATE TABLE IF NOT EXISTS ticket_history (
           id SERIAL PRIMARY KEY,
           ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
@@ -321,6 +331,7 @@ async function initTables() {
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_subcategory_id ON tickets(subcategory_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_notes_ticket_id ON ticket_notes(ticket_id)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket_id ON ticket_comments(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_history_ticket_id ON ticket_history(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_ticket_id ON ticket_custom_field_values(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_field_id ON ticket_custom_field_values(field_definition_id)');

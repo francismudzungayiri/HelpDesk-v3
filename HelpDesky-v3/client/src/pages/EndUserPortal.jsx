@@ -109,7 +109,7 @@ const EndUserPortal = () => {
           </div>
         ) : (
           <div>
-            <div className="table-responsive table-wide hide-mobile">
+            <div className="table-responsive table-wide">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #dfe1e6' }}>
@@ -174,54 +174,6 @@ const EndUserPortal = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            <div className="show-mobile" style={{ display: 'grid', gap: '10px' }}>
-              {tickets.map((ticket) => (
-                <div key={ticket.id} style={{ border: '1px solid #dfe1e6', borderRadius: '8px', padding: '12px' }}>
-                  <div className="flex justify-between items-center" style={{ marginBottom: '10px' }}>
-                    <strong>#{ticket.id}</strong>
-                    <button
-                      className="btn-secondary"
-                      onClick={() => navigate(`/tickets/${ticket.id}`)}
-                      style={{ padding: '4px 10px', fontSize: '12px' }}
-                    >
-                      View
-                    </button>
-                  </div>
-                  <div style={{ marginBottom: '10px', lineHeight: 1.4 }}>{ticket.description}</div>
-                  <div style={{ fontSize: '13px', color: '#6b778c', marginBottom: '6px' }}>
-                    {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : '-'}
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        background: getPriorityBadgeColor(ticket.priority) + '20',
-                        color: getPriorityBadgeColor(ticket.priority)
-                      }}
-                    >
-                      {ticket.priority}
-                    </span>
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        background: getStatusBadgeColor(ticket.status) + '20',
-                        color: getStatusBadgeColor(ticket.status)
-                      }}
-                    >
-                      {ticket.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div style={{ color: '#6b778c', fontSize: '12px' }}>{new Date(ticket.created_at).toLocaleDateString()}</div>
-                </div>
-              ))}
             </div>
           </div>
         )}

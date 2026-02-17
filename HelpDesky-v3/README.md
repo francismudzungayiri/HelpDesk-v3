@@ -86,6 +86,7 @@ node create_user.js <username> <password> <role> <full name>
 - JWT secret is required at startup.
 - CORS origins are environment-configurable.
 - End users can only access their own tickets.
+- Shared ticket comments are visible to all participants on the ticket (admin, agent, end user).
 - Internal ticket notes are staff-only.
 
 ## Key Features
@@ -94,6 +95,7 @@ node create_user.js <username> <password> <role> <full name>
 - Ticket categories and subcategories
 - Dynamic custom ticket fields by category/subcategory
 - Ticket activity history
+- Shared ticket comments (admin/agent/end user)
 - Internal notes/work log
 - Admin dashboard and reports
 - Staff and end-user management (admin)
