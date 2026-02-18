@@ -209,8 +209,13 @@ async function migrate() {
       await client.query(`
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS department VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS phone VARCHAR(255)
+        ADD COLUMN IF NOT EXISTS phone VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS work_status VARCHAR(50) DEFAULT 'AVAILABLE'
       `);
+
+      await client.query("UPDATE users SET work_status = 'AVAILABLE' WHERE work_status IS NULL");
+      await client.query("ALTER TABLE users ALTER COLUMN work_status SET DEFAULT 'AVAILABLE'");
+      await client.query('ALTER TABLE users ALTER COLUMN work_status SET NOT NULL');
 
       await client.query(`
         ALTER TABLE users
@@ -220,6 +225,15 @@ async function migrate() {
         ALTER TABLE users
         ADD CONSTRAINT users_role_check
         CHECK (role IN ('ADMIN', 'AGENT', 'END_USER'))
+      `);
+      await client.query(`
+        ALTER TABLE users
+        DROP CONSTRAINT IF EXISTS users_work_status_check
+      `);
+      await client.query(`
+        ALTER TABLE users
+        ADD CONSTRAINT users_work_status_check
+        CHECK (work_status IN ('AVAILABLE', 'ON_LEAVE', 'AT_WORKSHOP'))
       `);
 
       await client.query(`

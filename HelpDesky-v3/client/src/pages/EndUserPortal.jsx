@@ -4,11 +4,14 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
+const ITEMS_PER_PAGE = 10;
+
 const EndUserPortal = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchTickets();
@@ -58,6 +61,13 @@ const EndUserPortal = () => {
     inProgress: tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length,
     resolved: tickets.filter((ticket) => ticket.status === 'RESOLVED').length
   };
+
+  const totalPages = Math.max(1, Math.ceil(tickets.length / ITEMS_PER_PAGE));
+  const currentPageClamped = Math.min(currentPage, totalPages);
+  const pageStartIndex = (currentPageClamped - 1) * ITEMS_PER_PAGE;
+  const paginatedTickets = tickets.slice(pageStartIndex, pageStartIndex + ITEMS_PER_PAGE);
+  const startRowNumber = tickets.length === 0 ? 0 : pageStartIndex + 1;
+  const endRowNumber = tickets.length === 0 ? 0 : pageStartIndex + paginatedTickets.length;
 
   if (loading) {
     return (
@@ -123,7 +133,7 @@ const EndUserPortal = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tickets.map((ticket) => (
+                  {paginatedTickets.map((ticket) => (
                     <tr key={ticket.id} style={{ borderBottom: '1px solid #dfe1e6' }}>
                       <td style={{ padding: '12px' }}>#{ticket.id}</td>
                       <td style={{ padding: '12px', maxWidth: '300px' }}>
@@ -174,6 +184,44 @@ const EndUserPortal = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            <div
+              style={{
+                marginTop: '12px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '10px',
+                flexWrap: 'wrap'
+              }}
+            >
+              <div style={{ fontSize: '13px', color: '#6b778c' }}>
+                Showing {startRowNumber}-{endRowNumber} of {tickets.length}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setCurrentPage(Math.max(1, currentPageClamped - 1))}
+                  disabled={currentPageClamped === 1}
+                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                >
+                  Previous
+                </button>
+                <span style={{ fontSize: '13px', color: '#42526e' }}>
+                  Page {currentPageClamped} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPageClamped + 1))}
+                  disabled={currentPageClamped === totalPages}
+                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         )}

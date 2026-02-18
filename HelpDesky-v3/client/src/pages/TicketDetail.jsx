@@ -29,6 +29,7 @@ const TicketDetail = () => {
   const [addingNote, setAddingNote] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [addingComment, setAddingComment] = useState(false);
+  const assignableUsers = users.filter((staffUser) => staffUser.work_status === 'AVAILABLE');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -376,7 +377,7 @@ const TicketDetail = () => {
                   <label>Assignee</label>
                   <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
                     <option value="">Unassigned</option>
-                    {users.map((u) => (
+                    {assignableUsers.map((u) => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>

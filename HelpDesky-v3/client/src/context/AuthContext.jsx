@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../api';
-import { DEFAULT_WORK_STATUS, normalizeWorkStatus, readWorkStatus, getProfileStatusStorageKey } from '../utils/profileStatus';
+import { DEFAULT_WORK_STATUS, normalizeWorkStatus } from '../utils/profileStatus';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +18,10 @@ export const AuthProvider = ({ children }) => {
 
     api.get('/auth/me')
       .then(res => {
-        if (active) setUser(res.data);
+        if (active) {
+          setUser(res.data);
+          setWorkStatus(normalizeWorkStatus(res.data?.work_status));
+        }
       })
       .catch(() => {
         localStorage.removeItem('token');
@@ -32,19 +35,10 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!user?.id) {
-      setWorkStatus(DEFAULT_WORK_STATUS);
-      return;
-    }
-
-    setWorkStatus(readWorkStatus(user.id));
-  }, [user?.id]);
-
   const setSession = (token, userData) => {
     localStorage.setItem('token', token);
     setUser(userData);
-    setWorkStatus(readWorkStatus(userData?.id));
+    setWorkStatus(normalizeWorkStatus(userData?.work_status));
   };
 
   const login = async (username, password) => {
@@ -59,12 +53,13 @@ export const AuthProvider = ({ children }) => {
     setWorkStatus(DEFAULT_WORK_STATUS);
   };
 
-  const updateWorkStatus = (nextStatus) => {
+  const updateWorkStatus = async (nextStatus) => {
     const normalizedStatus = normalizeWorkStatus(nextStatus);
-    if (user?.id) {
-      localStorage.setItem(getProfileStatusStorageKey(user.id), normalizedStatus);
-    }
-    setWorkStatus(normalizedStatus);
+    const res = await api.patch('/auth/me/work-status', { work_status: normalizedStatus });
+    const persistedStatus = normalizeWorkStatus(res.data?.work_status || normalizedStatus);
+    setWorkStatus(persistedStatus);
+    setUser((currentUser) => (currentUser ? { ...currentUser, work_status: persistedStatus } : currentUser));
+    return persistedStatus;
   };
 
   return (

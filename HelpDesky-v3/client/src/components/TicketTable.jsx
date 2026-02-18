@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Avatar from './Avatar';
 import { timeAgo } from '../utils/dateUtils';
 
+const ITEMS_PER_PAGE = 10;
+
 const TicketTable = ({ tickets }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(tickets.length / ITEMS_PER_PAGE));
+  const currentPageClamped = Math.min(currentPage, totalPages);
+  const pageStartIndex = (currentPageClamped - 1) * ITEMS_PER_PAGE;
+
+  const paginatedTickets = useMemo(
+    () => tickets.slice(pageStartIndex, pageStartIndex + ITEMS_PER_PAGE),
+    [tickets, pageStartIndex]
+  );
+
+  const startRowNumber = tickets.length === 0 ? 0 : pageStartIndex + 1;
+  const endRowNumber = tickets.length === 0 ? 0 : pageStartIndex + paginatedTickets.length;
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'OPEN':
@@ -34,7 +50,7 @@ const TicketTable = ({ tickets }) => {
             </tr>
           </thead>
           <tbody>
-            {tickets.map((ticket) => (
+            {paginatedTickets.map((ticket) => (
               <tr key={ticket.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '15px' }}>
                   <input type="checkbox" aria-label={`Select ticket ${ticket.id}`} />
@@ -92,7 +108,7 @@ const TicketTable = ({ tickets }) => {
                 </td>
               </tr>
             ))}
-            {tickets.length === 0 && (
+            {paginatedTickets.length === 0 && (
               <tr>
                 <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#6b778c' }}>
                   No tickets found using current filter.
@@ -104,10 +120,10 @@ const TicketTable = ({ tickets }) => {
       </div>
 
       <div className="show-mobile" style={{ padding: '12px' }}>
-        {tickets.length === 0 ? (
+        {paginatedTickets.length === 0 ? (
           <div style={{ padding: '12px', color: '#6b778c', textAlign: 'center' }}>No tickets found using current filter.</div>
         ) : (
-          tickets.map((ticket) => (
+          paginatedTickets.map((ticket) => (
             <div
               key={ticket.id}
               style={{
@@ -157,6 +173,47 @@ const TicketTable = ({ tickets }) => {
           ))
         )}
       </div>
+
+      {tickets.length > 0 && (
+        <div
+          style={{
+            borderTop: '1px solid #dfe1e6',
+            padding: '12px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '10px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <div style={{ fontSize: '13px', color: '#6b778c' }}>
+            Showing {startRowNumber}-{endRowNumber} of {tickets.length}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setCurrentPage(Math.max(1, currentPageClamped - 1))}
+              disabled={currentPageClamped === 1}
+              style={{ padding: '6px 10px', fontSize: '12px' }}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '13px', color: '#42526e' }}>
+              Page {currentPageClamped} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPageClamped + 1))}
+              disabled={currentPageClamped === totalPages}
+              style={{ padding: '6px 10px', fontSize: '12px' }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

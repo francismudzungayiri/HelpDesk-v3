@@ -22,6 +22,10 @@ const registerSchema = z.object({
   phone: z.string().optional()
 });
 
+const workStatusSchema = z.object({
+  work_status: z.enum(['AVAILABLE', 'ON_LEAVE', 'AT_WORKSHOP'])
+});
+
 // Login
 router.post('/login', async (req, res) => {
   try {
@@ -39,7 +43,16 @@ router.post('/login', async (req, res) => {
         process.env.JWT_SECRET,
         { expiresIn: '8h' }
       );
-      res.json({ token, user: { id: user.id, username: user.username, name: user.name, role: user.role } });
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          work_status: user.work_status
+        }
+      });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -55,13 +68,35 @@ router.post('/login', async (req, res) => {
 // Verify Token (Me)
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, role, name FROM users WHERE id = $1", [req.user.id]);
+    const result = await pool.query("SELECT id, username, role, name, work_status FROM users WHERE id = $1", [req.user.id]);
     const user = result.rows[0];
     if (!user) return res.sendStatus(404);
     res.json(user);
   } catch (err) {
     console.error('Get current user failed:', err);
     res.status(500).json({ message: 'Failed to fetch current user' });
+  }
+});
+
+router.patch('/me/work-status', authenticateToken, async (req, res) => {
+  try {
+    const { work_status } = workStatusSchema.parse(req.body);
+    const result = await pool.query(
+      'UPDATE users SET work_status = $1 WHERE id = $2 RETURNING id, work_status',
+      [work_status, req.user.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: getZodMessages(err) });
+    }
+    console.error('Update work status failed:', err);
+    res.status(500).json({ message: 'Failed to update work status' });
   }
 });
 
@@ -78,7 +113,7 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name",
+      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name, work_status",
       [username, hash, 'END_USER', name, department, phone]
     );
 

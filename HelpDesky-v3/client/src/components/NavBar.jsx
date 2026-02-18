@@ -28,12 +28,15 @@ const NavBar = () => {
     textDecoration: 'none'
   });
 
-  const renderNavLink = (path, label, Icon) => (
+  const renderNavLink = (path, label, iconComponent) => {
+    const IconComponent = iconComponent;
+    return (
     <Link to={path} onClick={closeMobileMenu} style={linkStyle(path)}>
-      <Icon size={16} aria-hidden="true" />
+      <IconComponent size={16} aria-hidden="true" />
       <span>{label}</span>
     </Link>
-  );
+    );
+  };
 
   return (
     <nav className={`app-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>

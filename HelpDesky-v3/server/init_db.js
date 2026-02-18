@@ -212,6 +212,7 @@ async function initTables() {
           username VARCHAR(255) UNIQUE NOT NULL,
           password VARCHAR(255) NOT NULL,
           role VARCHAR(50) NOT NULL CHECK(role IN ('ADMIN', 'AGENT', 'END_USER')),
+          work_status VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE' CHECK(work_status IN ('AVAILABLE', 'ON_LEAVE', 'AT_WORKSHOP')),
           department VARCHAR(255),
           phone VARCHAR(255),
           name VARCHAR(255) NOT NULL

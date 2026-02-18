@@ -19,6 +19,7 @@ const userCreateSchema = z.object({
 const userUpdateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
   role: z.enum(['ADMIN', 'AGENT', 'END_USER']).optional(),
+  work_status: z.enum(['AVAILABLE', 'ON_LEAVE', 'AT_WORKSHOP']).optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   department: z.string().optional(),
   phone: z.string().optional()
@@ -26,7 +27,7 @@ const userUpdateSchema = z.object({
 
 const listUsersByRoleClause = async (res, whereClause, params = []) => {
   try {
-    let sql = "SELECT id, name, username, role, department, phone FROM users";
+    let sql = "SELECT id, name, username, role, work_status, department, phone FROM users";
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += " ORDER BY id";
     const result = await pool.query(sql, params);
@@ -79,7 +80,7 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name, department, phone",
+      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, work_status, name, department, phone",
       [username, hash, role, name, req.body.department, req.body.phone]
     );
     
@@ -97,7 +98,7 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
 router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, password } = userUpdateSchema.parse(req.body);
+    const { name, role, work_status, password } = userUpdateSchema.parse(req.body);
     
     const updates = [];
     const values = [];
@@ -110,6 +111,10 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
     if (role) {
       updates.push(`role = $${idx++}`);
       values.push(role);
+    }
+    if (work_status) {
+      updates.push(`work_status = $${idx++}`);
+      values.push(work_status);
     }
     if (password) {
       const hash = await bcrypt.hash(password, 10);
@@ -128,7 +133,7 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
     if (updates.length === 0) return res.status(400).json({ message: 'No fields to update' });
 
     values.push(id);
-    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, name, username, role, department, phone`;
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, name, username, role, work_status, department, phone`;
     
     const result = await pool.query(sql, values);
     

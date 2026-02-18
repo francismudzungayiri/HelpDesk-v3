@@ -17,11 +17,17 @@ const Profile = () => {
   const activeOption = getWorkStatusMeta(selectedStatus);
   const hasUnsavedChanges = selectedStatus !== savedStatus;
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    updateWorkStatus(selectedStatus);
-    setSavedStatus(selectedStatus);
-    toast.success('Profile status updated');
+    try {
+      const persistedStatus = await updateWorkStatus(selectedStatus);
+      setSavedStatus(persistedStatus);
+      setSelectedStatus(persistedStatus);
+      toast.success('Profile status updated');
+    } catch (err) {
+      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to update status'];
+      messages.forEach((msg) => toast.error(msg));
+    }
   };
 
   return (

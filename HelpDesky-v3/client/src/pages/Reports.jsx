@@ -85,6 +85,13 @@ const csvEscape = (value) => {
   return stringValue;
 };
 
+const htmlEscape = (value) => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 const downloadRowsAsCsv = (rows, fileName) => {
   const csv = rows.map((row) => row.map((cell) => csvEscape(cell)).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -103,6 +110,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('OVERVIEW');
+  const [exportFormat, setExportFormat] = useState('');
 
   const loadReports = useCallback(async (filtersToApply) => {
     setLoading(true);
@@ -139,7 +147,7 @@ const Reports = () => {
     loadReports(DEFAULT_FILTERS);
   };
 
-  const downloadCSV = () => {
+  const getExportRows = () => {
     if (!data) return;
 
     const filtersApplied = data.filters_applied || DEFAULT_FILTERS_APPLIED;
@@ -182,7 +190,81 @@ const Reports = () => {
       rows.push(['Tickets Over Time', item.date, item.count]);
     });
 
+    return rows;
+  };
+
+  const downloadCSV = () => {
+    const rows = getExportRows();
+    if (!rows) return;
     downloadRowsAsCsv(rows, 'helpdesk_reports.csv');
+  };
+
+  const downloadPDF = () => {
+    const rows = getExportRows();
+    if (!rows) return;
+
+    const tableRows = rows
+      .slice(1)
+      .map((row) => `<tr>${row.map((cell) => `<td>${htmlEscape(cell)}</td>`).join('')}</tr>`)
+      .join('');
+
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Helpdesk Reports</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #172B4D; }
+            h1 { margin: 0 0 16px; font-size: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #dfe1e6; padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #f4f5f7; }
+          </style>
+        </head>
+        <body>
+          <h1>Helpdesk Reports</h1>
+          <table>
+            <thead>
+              <tr><th>Section</th><th>Metric</th><th>Value</th></tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, '_blank');
+    if (!printWindow) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const onLoaded = () => {
+      printWindow.focus();
+      printWindow.print();
+      URL.revokeObjectURL(url);
+    };
+
+    if (printWindow.document.readyState === 'complete') {
+      onLoaded();
+      return;
+    }
+
+    printWindow.addEventListener('load', onLoaded, { once: true });
+  };
+
+  const handleExportChange = (event) => {
+    const format = event.target.value;
+    setExportFormat('');
+    if (format === 'CSV') {
+      downloadCSV();
+      return;
+    }
+    if (format === 'PDF') {
+      downloadPDF();
+    }
   };
 
   const statusDistribution = Array.isArray(data?.status_distribution) ? data.status_distribution : EMPTY_LIST;
@@ -245,7 +327,17 @@ const Reports = () => {
         <h2>System Reports</h2>
         <div className="page-header-actions">
           {loading ? <span style={{ color: '#6b778c', fontSize: '13px' }}>Refreshing...</span> : null}
-          <button type="button" onClick={downloadCSV} className="btn-secondary">Export to CSV</button>
+          <select
+            aria-label="Export report"
+            className="btn-secondary"
+            value={exportFormat}
+            onChange={handleExportChange}
+            style={{ minWidth: '150px' }}
+          >
+            <option value="">Export</option>
+            <option value="CSV">Export to CSV</option>
+            <option value="PDF">Export to PDF</option>
+          </select>
         </div>
       </div>
 

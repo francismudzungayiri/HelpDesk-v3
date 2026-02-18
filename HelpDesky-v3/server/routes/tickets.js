@@ -508,11 +508,11 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (assignee_id !== undefined && assignee_id !== currentTicket.assignee_id) {
       if (assignee_id !== null) {
         const assigneeRes = await pool.query(
-          "SELECT id FROM users WHERE id = $1 AND role IN ('ADMIN', 'AGENT')",
+          "SELECT id FROM users WHERE id = $1 AND role IN ('ADMIN', 'AGENT') AND work_status = 'AVAILABLE'",
           [assignee_id]
         );
         if (assigneeRes.rowCount === 0) {
-          return res.status(400).json({ message: 'Assignee must be an existing staff user' });
+          return res.status(400).json({ message: 'Assignee must be an available staff user' });
         }
       }
 
