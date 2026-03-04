@@ -50,6 +50,8 @@ router.post('/login', async (req, res) => {
           username: user.username,
           name: user.name,
           role: user.role,
+          department: user.department,
+          phone: user.phone,
           work_status: user.work_status
         }
       });
@@ -68,7 +70,10 @@ router.post('/login', async (req, res) => {
 // Verify Token (Me)
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query("SELECT id, username, role, name, work_status FROM users WHERE id = $1", [req.user.id]);
+    const result = await pool.query(
+      "SELECT id, username, role, name, department, phone, work_status FROM users WHERE id = $1",
+      [req.user.id]
+    );
     const user = result.rows[0];
     if (!user) return res.sendStatus(404);
     res.json(user);
@@ -113,7 +118,7 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name, work_status",
+      "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, name, department, phone, work_status",
       [username, hash, 'END_USER', name, department, phone]
     );
 

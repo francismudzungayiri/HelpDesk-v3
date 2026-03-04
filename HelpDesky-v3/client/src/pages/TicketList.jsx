@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import TicketTable from '../components/TicketTable';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import useTicketEvents from '../hooks/useTicketEvents';
 
 const TicketList = () => {
   const [tickets, setTickets] = useState([]);
@@ -12,6 +13,14 @@ const TicketList = () => {
   const [scope, setScope] = useState('ALL');
   const { user } = useAuth();
   const isAgent = user?.role === 'AGENT';
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isAgent) {
@@ -21,33 +30,40 @@ const TicketList = () => {
     setScope('ALL');
   }, [isAgent]);
 
-  useEffect(() => {
-    let active = true;
-
-    const run = async () => {
+  const fetchTickets = useCallback(async ({ background = false } = {}) => {
+    if (!background && mountedRef.current) {
       setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (filter) params.set('status', filter);
-        if (isAgent && scope === 'MY') params.set('scope', 'my');
+    }
 
-        const query = params.toString();
-        const res = await api.get(`/tickets${query ? `?${query}` : ''}`);
-        if (active) setTickets(res.data);
-      } catch (err) {
-        console.error('Failed to fetch tickets', err);
-        toast.error('Failed to fetch tickets');
-      } finally {
-        if (active) setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (filter) params.set('status', filter);
+      if (isAgent && scope === 'MY') params.set('scope', 'my');
+
+      const query = params.toString();
+      const res = await api.get(`/tickets${query ? `?${query}` : ''}`);
+      if (mountedRef.current) {
+        setTickets(res.data);
       }
-    };
-
-    run();
-
-    return () => {
-      active = false;
-    };
+    } catch (err) {
+      console.error('Failed to fetch tickets', err);
+      if (!background) {
+        toast.error('Failed to fetch tickets');
+      }
+    } finally {
+      if (!background && mountedRef.current) {
+        setLoading(false);
+      }
+    }
   }, [filter, isAgent, scope]);
+
+  useEffect(() => {
+    fetchTickets({ background: false });
+  }, [fetchTickets]);
+
+  useTicketEvents(() => {
+    fetchTickets({ background: true });
+  }, Boolean(user));
 
   return (
     <div>

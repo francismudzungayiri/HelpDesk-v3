@@ -250,19 +250,16 @@ const CreateTicket = () => {
 
       const sharedPayload = {
         description: formData.description,
-        priority: formData.priority,
         category_id: Number(formData.category_id),
         subcategory_id: Number(formData.subcategory_id),
         custom_fields: customFields
       };
 
       const payload = isEndUser
-        ? {
-            ...sharedPayload,
-            phone: formData.phone || undefined
-          }
+        ? sharedPayload
         : {
             ...sharedPayload,
+            priority: formData.priority,
             caller_name: formData.caller_name,
             department: formData.department,
             phone: formData.phone || undefined
@@ -328,19 +325,6 @@ const CreateTicket = () => {
               </>
             )}
 
-            {isEndUser && (
-              <div className="form-group">
-                <label>Phone Number (optional)</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Use this if we should call a different number"
-                />
-              </div>
-            )}
-
             <div className="form-row">
               <div className="form-group">
                 <label>Category *</label>
@@ -395,19 +379,21 @@ const CreateTicket = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label>Priority *</label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-                required
-              >
-                <option value="LOW">Low - Not urgent</option>
-                <option value="MEDIUM">Medium - Standard issue</option>
-                <option value="HIGH">High - Critical/Blocker</option>
-              </select>
-            </div>
+            {!isEndUser && (
+              <div className="form-group">
+                <label>Priority *</label>
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="LOW">Low - Not urgent</option>
+                  <option value="MEDIUM">Medium - Standard issue</option>
+                  <option value="HIGH">High - Critical/Blocker</option>
+                </select>
+              </div>
+            )}
 
             <div className="form-group">
               <label>Description *</label>

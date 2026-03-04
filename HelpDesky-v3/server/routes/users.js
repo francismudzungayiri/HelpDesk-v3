@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const { authenticateToken, authorizeAnyRole } = require('../middleware/auth');
 const router = express.Router();
 const SYSTEM_ADMIN_USERNAME = String(process.env.SEED_ADMIN_USERNAME || 'admin').trim().toLowerCase();
+const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
 
 // Validation Schemas
 const userCreateSchema = z.object({
@@ -87,7 +88,7 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     console.error('Create user failed:', err);
     res.status(500).json({ message: 'Failed to create user' });
@@ -142,7 +143,7 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
     res.json(result.rows[0]);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map(e => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     console.error('Update user failed:', err);
     res.status(500).json({ message: 'Failed to update user' });
@@ -158,13 +159,16 @@ router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asy
   }
 
   try {
-    const targetRes = await pool.query("SELECT id, username FROM users WHERE id = $1", [id]);
+    const targetRes = await pool.query("SELECT id, username, role FROM users WHERE id = $1", [id]);
     if (targetRes.rowCount === 0) return res.status(404).json({ message: 'User not found' });
 
     const targetUser = targetRes.rows[0];
     const targetUsername = String(targetUser.username || '').trim().toLowerCase();
     if (targetUsername === SYSTEM_ADMIN_USERNAME) {
       return res.status(403).json({ message: 'System admin account cannot be deleted' });
+    }
+    if (req.user.role === 'AGENT' && targetUser.role === 'ADMIN') {
+      return res.status(403).json({ message: 'Agents cannot delete admin accounts' });
     }
 
     const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);

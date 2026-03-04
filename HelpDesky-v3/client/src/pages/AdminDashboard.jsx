@@ -1,25 +1,50 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
+import useTicketEvents from '../hooks/useTicketEvents';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    fetchData();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async ({ background = false } = {}) => {
+    if (!background && mountedRef.current) {
+      setLoading(true);
+    }
+
     try {
       const res = await api.get('/stats');
-      setStats(res.data);
-    } catch {
-      toast.error('Failed to load dashboard data');
+      if (mountedRef.current) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      if (!background) {
+        toast.error('Failed to load dashboard data');
+      } else {
+        console.error('Failed to refresh dashboard data', err);
+      }
     } finally {
-      setLoading(false);
+      if (!background && mountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData({ background: false });
+  }, [fetchData]);
+
+  useTicketEvents(() => {
+    fetchData({ background: true });
+  });
 
   if (loading) return <div>Loading dashboard...</div>;
   if (!stats) return <div>Error loading stats</div>;

@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import { timeAgo } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import useTicketEvents from '../hooks/useTicketEvents';
 
 const TicketDetail = () => {
   const { id } = useParams();
@@ -31,9 +32,11 @@ const TicketDetail = () => {
   const [addingComment, setAddingComment] = useState(false);
   const assignableUsers = users.filter((staffUser) => staffUser.work_status === 'AVAILABLE');
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setLoadError('');
+  const fetchData = useCallback(async ({ background = false } = {}) => {
+    if (!background) {
+      setLoading(true);
+      setLoadError('');
+    }
 
     try {
       const ticketRes = await api.get(`/tickets/${id}`);
@@ -43,15 +46,17 @@ const TicketDetail = () => {
       setResolutionNote(ticketRes.data.resolution_note || '');
     } catch (err) {
       console.error('Error fetching ticket detail:', err);
-      const message = err.response?.data?.message || 'Failed to load ticket details';
-      toast.error(message);
-      setLoadError(message);
-      setTicket(null);
-      setUsers([]);
-      setNotes([]);
-      setComments([]);
-      setHistory([]);
-      setLoading(false);
+      if (!background) {
+        const message = err.response?.data?.message || 'Failed to load ticket details';
+        toast.error(message);
+        setLoadError(message);
+        setTicket(null);
+        setUsers([]);
+        setNotes([]);
+        setComments([]);
+        setHistory([]);
+        setLoading(false);
+      }
       return;
     }
 
@@ -91,7 +96,7 @@ const TicketDetail = () => {
         setComments([]);
       }
 
-      if ([usersRes, notesRes, historyRes, commentsRes].some((result) => result.status === 'rejected')) {
+      if (!background && [usersRes, notesRes, historyRes, commentsRes].some((result) => result.status === 'rejected')) {
         toast.error('Ticket loaded, but some related details could not be loaded');
       }
     } else {
@@ -105,16 +110,29 @@ const TicketDetail = () => {
       } catch (err) {
         console.error('Error fetching ticket comments:', err);
         setComments([]);
-        toast.error('Ticket loaded, but comments could not be loaded');
+        if (!background) {
+          toast.error('Ticket loaded, but comments could not be loaded');
+        }
       }
     }
 
-    setLoading(false);
+    if (!background) {
+      setLoading(false);
+    }
   }, [id, isEndUser]);
 
   useEffect(() => {
-    fetchData();
+    fetchData({ background: false });
   }, [fetchData]);
+
+  useTicketEvents(({ payload }) => {
+    if (!id) return;
+    const changedTicketId = Number(payload?.ticket_id);
+    if (Number.isFinite(changedTicketId) && changedTicketId !== Number(id)) {
+      return;
+    }
+    fetchData({ background: true });
+  }, Boolean(id));
 
   const handleUpdate = async () => {
     if (isEndUser) return;
@@ -127,7 +145,7 @@ const TicketDetail = () => {
         resolution_note: resolutionNote
       });
       toast.success('Ticket updated successfully');
-      fetchData();
+      fetchData({ background: false });
     } catch (err) {
       const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to update ticket'];
       messages.forEach((msg) => toast.error(msg));

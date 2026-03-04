@@ -4,6 +4,7 @@ const pool = require('../db');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 const router = express.Router();
+const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
 
 const categoryCreateSchema = z.object({
   name: z.string().min(2, 'Category name is required').max(100),
@@ -59,7 +60,7 @@ const deleteFieldById = async (req, res) => {
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     console.error('Delete custom field failed:', err);
     return res.status(500).json({ message: 'Failed to delete custom field' });
@@ -188,7 +189,7 @@ router.post('/categories', authenticateToken, authorizeRole('ADMIN'), async (req
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     if (err.code === '23505') {
       return res.status(409).json({ message: 'Category already exists' });
@@ -222,7 +223,7 @@ router.post('/subcategories', authenticateToken, authorizeRole('ADMIN'), async (
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     if (err.code === '23505') {
       return res.status(409).json({ message: 'Subcategory already exists for this category' });
@@ -294,7 +295,7 @@ router.post('/fields', authenticateToken, authorizeRole('ADMIN'), async (req, re
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
     if (err.code === '23505') {
       return res.status(409).json({ message: 'Field key already exists for this category/subcategory scope' });

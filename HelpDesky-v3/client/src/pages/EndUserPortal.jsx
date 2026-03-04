@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import useTicketEvents from '../hooks/useTicketEvents';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -12,22 +13,44 @@ const EndUserPortal = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    fetchTickets();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async ({ background = false } = {}) => {
+    if (!background && mountedRef.current) {
+      setLoading(true);
+    }
+
     try {
       const response = await api.get('/tickets');
-      setTickets(response.data);
+      if (mountedRef.current) {
+        setTickets(response.data);
+      }
     } catch (err) {
       console.error('Error fetching tickets:', err);
-      toast.error('Failed to load your tickets');
+      if (!background) {
+        toast.error('Failed to load your tickets');
+      }
     } finally {
-      setLoading(false);
+      if (!background && mountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTickets({ background: false });
+  }, [fetchTickets]);
+
+  useTicketEvents(() => {
+    fetchTickets({ background: true });
+  }, Boolean(user));
 
   const getStatusBadgeColor = (status) => {
     switch (status) {

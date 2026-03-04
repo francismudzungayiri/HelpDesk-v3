@@ -2,29 +2,32 @@ const express = require('express');
 const { z } = require('zod');
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { publish } = require('../realtime');
 
 const router = express.Router();
+const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
 
 const customFieldInputSchema = z.object({
   field_definition_id: z.coerce.number().int().positive(),
   value: z.any().optional().nullable()
 });
 
-const baseTicketCreateSchema = z.object({
+const ticketBaseCreateSchema = z.object({
   description: z.string().min(1, 'Description is required'),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   category_id: z.coerce.number().int().positive(),
   subcategory_id: z.coerce.number().int().positive(),
   custom_fields: z.array(customFieldInputSchema).optional().default([])
 });
 
-const staffTicketCreateSchema = baseTicketCreateSchema.extend({
+const staffTicketCreateSchema = ticketBaseCreateSchema.extend({
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   caller_name: z.string().min(1, 'Caller name is required'),
   department: z.string().min(1, 'Department is required'),
   phone: z.string().optional()
 });
 
-const endUserTicketCreateSchema = baseTicketCreateSchema.extend({
+const endUserTicketCreateSchema = ticketBaseCreateSchema.extend({
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().default('MEDIUM'),
   phone: z.string().optional()
 });
 
@@ -443,6 +446,11 @@ router.post('/', authenticateToken, async (req, res) => {
 
     await client.query('COMMIT');
 
+    publish('ticket.created', {
+      ticket_id: ticketId,
+      actor_id: req.user.id
+    });
+
     res.status(201).json({
       id: ticketId,
       message: 'Ticket created',
@@ -454,7 +462,7 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
 
     if (err.statusCode) {
@@ -562,10 +570,15 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       client.release();
     }
 
+    publish('ticket.updated', {
+      ticket_id: Number(ticketId),
+      actor_id: req.user.id
+    });
+
     res.json({ message: 'Ticket updated' });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
 
     console.error('Update ticket failed:', err);
@@ -712,10 +725,16 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
       user_role: req.user.role
     };
 
+    publish('ticket.comment_added', {
+      ticket_id: Number(id),
+      comment_id: result.rows[0].id,
+      actor_id: req.user.id
+    });
+
     res.status(201).json(commentWithUser);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
 
     console.error('Add ticket comment failed:', err);
@@ -749,10 +768,16 @@ router.post('/:id/notes', authenticateToken, async (req, res) => {
       user_username: req.user.username
     };
 
+    publish('ticket.note_added', {
+      ticket_id: Number(id),
+      note_id: result.rows[0].id,
+      actor_id: req.user.id
+    });
+
     res.status(201).json(noteWithUser);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ errors: err.errors.map((e) => e.message) });
+      return res.status(400).json({ errors: getZodMessages(err) });
     }
 
     console.error('Add ticket note failed:', err);

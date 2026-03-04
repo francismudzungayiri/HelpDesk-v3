@@ -16,6 +16,12 @@ const Profile = () => {
 
   const activeOption = getWorkStatusMeta(selectedStatus);
   const hasUnsavedChanges = selectedStatus !== savedStatus;
+  const fallbackValue = (value) => {
+    if (value === null || value === undefined || String(value).trim() === '') {
+      return 'Not set';
+    }
+    return value;
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -47,6 +53,40 @@ const Profile = () => {
             <div className="profile-secondary-row">@{user?.username}</div>
             <div className="profile-secondary-row">{user?.role}</div>
             <span className={`badge work-status-badge ${activeOption.toneClass}`}>{activeOption.label}</span>
+          </div>
+        </div>
+
+        <div className="profile-details">
+          <h3>User Details</h3>
+          <div className="profile-details-grid">
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">User ID</div>
+              <div className="profile-detail-value">{fallbackValue(user?.id)}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Full Name</div>
+              <div className="profile-detail-value">{fallbackValue(user?.name)}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Username</div>
+              <div className="profile-detail-value">{user?.username ? `@${user.username}` : 'Not set'}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Role</div>
+              <div className="profile-detail-value">{fallbackValue(user?.role)}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Department</div>
+              <div className="profile-detail-value">{fallbackValue(user?.department)}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Phone</div>
+              <div className="profile-detail-value">{fallbackValue(user?.phone)}</div>
+            </div>
+            <div className="profile-detail-item">
+              <div className="profile-detail-label">Current Status</div>
+              <div className="profile-detail-value">{activeOption.label}</div>
+            </div>
           </div>
         </div>
 
