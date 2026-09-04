@@ -11,9 +11,11 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+// An idle client dropping (Postgres restart, network blip) is recoverable: the
+// pool discards that client and dials a new one on the next query. Exiting here
+// turned a transient fault into a full API outage.
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle client:', err);
 });
 
 module.exports = pool;

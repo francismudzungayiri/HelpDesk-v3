@@ -7,6 +7,12 @@ const router = express.Router();
 const SYSTEM_ADMIN_USERNAME = String(process.env.SEED_ADMIN_USERNAME || 'admin').trim().toLowerCase();
 const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
 
+const isSystemAdmin = (username) => String(username || '').trim().toLowerCase() === SYSTEM_ADMIN_USERNAME;
+
+// Agents run the day-to-day desk but must not be able to mint or promote admins,
+// otherwise the ADMIN/AGENT split is decorative. Only admins may write the ADMIN role.
+const canAssignRole = (actor, role) => role !== 'ADMIN' || actor.role === 'ADMIN';
+
 // Validation Schemas
 const userCreateSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -73,6 +79,14 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
   try {
     const { username, password, role, name } = userCreateSchema.parse(req.body);
 
+    if (!canAssignRole(req.user, role)) {
+      return res.status(403).json({ message: 'Only admins can create admin accounts' });
+    }
+
+    if (isSystemAdmin(username)) {
+      return res.status(403).json({ message: 'That username is reserved for the system admin account' });
+    }
+
     // Check if username exists
     const userCheck = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
     if (userCheck.rows.length > 0) {
@@ -100,7 +114,37 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
   try {
     const { id } = req.params;
     const { name, role, work_status, password } = userUpdateSchema.parse(req.body);
-    
+
+    const targetRes = await pool.query('SELECT id, username, role FROM users WHERE id = $1', [id]);
+    if (targetRes.rowCount === 0) return res.status(404).json({ message: 'User not found' });
+
+    const targetUser = targetRes.rows[0];
+    const isSelf = Number(targetUser.id) === Number(req.user.id);
+
+    // Same rule DELETE already enforced: agents do not get to touch admin accounts.
+    if (req.user.role === 'AGENT' && targetUser.role === 'ADMIN') {
+      return res.status(403).json({ message: 'Agents cannot modify admin accounts' });
+    }
+
+    if (role !== undefined && !canAssignRole(req.user, role)) {
+      return res.status(403).json({ message: 'Only admins can grant the admin role' });
+    }
+
+    // Changing your own role is never legitimate: it is either self-promotion
+    // or an admin accidentally locking themselves out.
+    if (role !== undefined && isSelf && role !== req.user.role) {
+      return res.status(403).json({ message: 'You cannot change your own role' });
+    }
+
+    if (isSystemAdmin(targetUser.username)) {
+      if (role !== undefined && role !== targetUser.role) {
+        return res.status(403).json({ message: 'The system admin role cannot be changed' });
+      }
+      if (password !== undefined && !isSelf) {
+        return res.status(403).json({ message: 'Only the system admin can change the system admin password' });
+      }
+    }
+
     const updates = [];
     const values = [];
     let idx = 1;

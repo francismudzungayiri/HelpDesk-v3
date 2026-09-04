@@ -64,6 +64,13 @@ const canAccessTicket = (user, ticket) => {
   return ticketOwnerId === requesterId;
 };
 
+// Event-stream audiences. Without these, publish() fans every event out to every
+// connected client, including end users watching tickets they cannot read.
+const staffOnly = (user) => user.role !== 'END_USER';
+
+const staffOrTicketOwner = (ownerId) => (user) =>
+  user.role !== 'END_USER' || Number(user.id) === Number(ownerId);
+
 const getTicketAccessRow = async (ticketId) => {
   const result = await pool.query('SELECT id, created_by FROM tickets WHERE id = $1', [ticketId]);
   return result.rows[0] || null;
@@ -449,7 +456,7 @@ router.post('/', authenticateToken, async (req, res) => {
     publish('ticket.created', {
       ticket_id: ticketId,
       actor_id: req.user.id
-    });
+    }, staffOrTicketOwner(req.user.id));
 
     res.status(201).json({
       id: ticketId,
@@ -488,7 +495,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const { status, assignee_id, resolution_note } = ticketUpdateSchema.parse(req.body);
     const ticketId = req.params.id;
 
-    const currentRes = await pool.query('SELECT status, assignee_id FROM tickets WHERE id = $1', [ticketId]);
+    const currentRes = await pool.query('SELECT status, assignee_id, created_by FROM tickets WHERE id = $1', [ticketId]);
     if (currentRes.rowCount === 0) {
       return res.status(404).json({ message: 'Ticket not found' });
     }
@@ -573,7 +580,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     publish('ticket.updated', {
       ticket_id: Number(ticketId),
       actor_id: req.user.id
-    });
+    }, staffOrTicketOwner(currentTicket.created_by));
 
     res.json({ message: 'Ticket updated' });
   } catch (err) {
@@ -630,9 +637,14 @@ router.get('/:id/history', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/tickets/:id/notes - Get notes for a ticket
+// GET /api/tickets/:id/notes - Get internal notes for a ticket (staff only)
 router.get('/:id/notes', authenticateToken, async (req, res) => {
   const { id } = req.params;
+
+  // Internal notes are staff-only even on a ticket the end user owns.
+  if (req.user.role === 'END_USER') {
+    return res.status(403).json({ message: 'End users cannot read internal notes' });
+  }
 
   try {
     const ticket = await getTicketAccessRow(id);
@@ -729,7 +741,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
       ticket_id: Number(id),
       comment_id: result.rows[0].id,
       actor_id: req.user.id
-    });
+    }, staffOrTicketOwner(ticket.created_by));
 
     res.status(201).json(commentWithUser);
   } catch (err) {
@@ -772,7 +784,7 @@ router.post('/:id/notes', authenticateToken, async (req, res) => {
       ticket_id: Number(id),
       note_id: result.rows[0].id,
       actor_id: req.user.id
-    });
+    }, staffOnly);
 
     res.status(201).json(noteWithUser);
   } catch (err) {

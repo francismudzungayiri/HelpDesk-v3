@@ -14,8 +14,8 @@ Internal IT help desk system for ticket intake, assignment, and resolution track
 - `END_USER`: submit and track own tickets only
 
 ## Project Structure
-- `/Users/mbuluundi/Documents/vibe-coding/HelpDesky-v3/client` - React app
-- `/Users/mbuluundi/Documents/vibe-coding/HelpDesky-v3/server` - Express API + DB scripts
+- `client/` - React app
+- `server/` - Express API + DB scripts
 
 ## Prerequisites
 - Node.js 18+
@@ -38,6 +38,10 @@ DB_NAME=helpdesky
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 CORS_ORIGINS=http://localhost:5173
+
+# Reverse proxies in front of the API (nginx on the same host = 1, direct = 0).
+# Required for per-client rate limiting to work.
+TRUST_PROXY=0
 
 # Optional one-time seed admin on init
 SEED_ADMIN_USERNAME=admin
@@ -87,7 +91,16 @@ node create_user.js <username> <password> <role> <full name>
 - CORS origins are environment-configurable.
 - End users can only access their own tickets.
 - Shared ticket comments are visible to all participants on the ticket (admin, agent, end user).
-- Internal ticket notes are staff-only.
+- Internal ticket notes are staff-only, over the API as well as in the UI.
+- Only admins can create accounts with the `ADMIN` role or grant it to an existing user.
+- Agents cannot modify or delete admin accounts.
+- Nobody can change their own role.
+- The seed admin account (`SEED_ADMIN_USERNAME`) cannot be deleted or demoted, and only
+  that account can change its own password.
+- Real-time events are filtered per subscriber: note events go to staff only, ticket
+  events go to staff and the ticket owner.
+- Set `TRUST_PROXY` to the number of proxies in front of the API, or rate limiting
+  will treat all traffic as coming from the proxy.
 
 ## Key Features
 - Auth and registration
@@ -99,6 +112,15 @@ node create_user.js <username> <password> <role> <full name>
 - Internal notes/work log
 - Admin dashboard and reports
 - Staff and end-user management (admin)
+
+## Tests
+The backend has an access-control suite covering the role boundaries (who may create
+or promote admins, who may read internal notes, ticket ownership, event-stream
+audiences). It uses a mocked database, so no Postgres instance is needed:
+```bash
+cd server
+npm test
+```
 
 ## After Pulling Latest Changes
 If your database already exists, run:

@@ -121,6 +121,9 @@ DB_NAME=${DB_NAME}
 DB_USERNAME=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
 CORS_ORIGINS=https://${DOMAIN}
+# One nginx proxy sits in front of the API; without this rate limiting sees
+# every request as coming from 127.0.0.1.
+TRUST_PROXY=1
 SEED_ADMIN_USERNAME=${SEED_ADMIN_USERNAME}
 SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
 SEED_ADMIN_NAME=${SEED_ADMIN_NAME}
