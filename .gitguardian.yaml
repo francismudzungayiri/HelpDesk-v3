@@ -1,0 +1,16 @@
+# ggshield configuration
+# https://docs.gitguardian.com/ggshield-docs/configuration
+version: 2
+
+secret:
+  ignored-paths:
+    # Access-control test fixtures. Every credential-shaped literal in these
+    # files is invented, and each one exists so a test can assert the API
+    # *rejects* it - e.g. "taking-over-the-box" is the password in the test
+    # proving an admin cannot reset the system admin's password. The JWT secret
+    # in tests/helpers.js only signs tokens for the mocked app.
+    - "HelpDesky-v3/server/tests/**"
+
+    # Placeholder values only ("replace-with-strong-secret"). Real values are
+    # written to server/.env by deploy.sh, which .gitignore excludes.
+    - "HelpDesky-v3/server/.env.example"
