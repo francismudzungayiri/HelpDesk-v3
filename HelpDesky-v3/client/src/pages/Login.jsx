@@ -1,64 +1,81 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
+import AuthCard, { LabelField } from '../components/AuthCard';
+import { errorMessage } from '../utils/errors';
 
 const Login = () => {
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const loadId = toast.loading('Signing in...');
+  if (user) return <Navigate to={user.role === 'END_USER' ? '/portal' : '/'} replace />;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!username.trim() || !password) {
+      setError('Enter your username and password.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
     try {
-      const response = await login(username, password);
-      toast.success('Welcome back!', { id: loadId });
-      
-      if (response?.user?.role === 'END_USER') {
-        navigate('/portal');
-      } else {
-        navigate('/');
-      }
+      const response = await login(username.trim(), password);
+      navigate(response?.user?.role === 'END_USER' ? '/portal' : '/', { replace: true });
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Invalid username or password'];
-      toast.error(messages[0], { id: loadId });
+      const status = err.response?.status;
+      setError(status === 401 || status === 400
+        ? "That username and password don't match. Check them and try again."
+        : errorMessage(err, "Couldn't sign you in. Try again."));
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', minHeight: '100vh', padding: '16px 0', alignItems: 'center' }}>
-      <div className="card" style={{ width: 'min(400px, 100%)' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>HelpDesky Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Username</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)} 
-              required 
+    <AuthCard
+      title="Sign in to HelpDesky"
+      lede="Use the username IT gave you, or the one you registered with."
+      footer={(
+        <p>
+          New to HelpDesky? <Link to="/register">Create an account</Link>
+        </p>
+      )}
+    >
+      <form className="label-form" onSubmit={handleSubmit} noValidate>
+        <div className="label-grid">
+          <LabelField id="login-username" label="Username">
+            <input
+              id="login-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               autoFocus
+              aria-describedby={error ? 'login-error' : undefined}
             />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
+          </LabelField>
+          <LabelField id="login-password" label="Password">
+            <input
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              aria-describedby={error ? 'login-error' : undefined}
             />
-          </div>
-          <button type="submit" className="btn" style={{ width: '100%' }}>Sign In</button>
-        </form>
-        
-        <div style={{ textAlign: 'center', marginTop: '20px', color: '#6b778c' }}>
-          Don't have an account? <Link to="/register" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '500' }}>Register</Link>
+          </LabelField>
         </div>
-      </div>
-    </div>
+        {error && <p className="label-error" id="login-error" role="alert">{error}</p>}
+        <button type="submit" className="label-submit" disabled={submitting}>
+          {submitting ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </AuthCard>
   );
 };
 

@@ -1,125 +1,113 @@
 import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
 import Avatar from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
-import { DEFAULT_WORK_STATUS, getWorkStatusMeta, PROFILE_STATUS_OPTIONS } from '../utils/profileStatus';
+import { getWorkStatusMeta, PROFILE_STATUS_OPTIONS } from '../utils/profileStatus';
+import { roleLabel } from '../utils/labels';
+import { errorMessage } from '../utils/errors';
 
-const Profile = () => {
-  const { user, workStatus, updateWorkStatus } = useAuth();
-  const [selectedStatus, setSelectedStatus] = useState(DEFAULT_WORK_STATUS);
-  const [savedStatus, setSavedStatus] = useState(DEFAULT_WORK_STATUS);
+const valueOrNotSet = (value) => (value === null || value === undefined || String(value).trim() === ''
+  ? <span className="muted">Not set</span>
+  : value);
+
+const Availability = () => {
+  const { workStatus, updateWorkStatus } = useAuth();
+  const [selected, setSelected] = useState(workStatus);
+  const [state, setState] = useState({ kind: 'idle', message: '' });
 
   useEffect(() => {
-    setSelectedStatus(workStatus);
-    setSavedStatus(workStatus);
+    setSelected(workStatus);
   }, [workStatus]);
 
-  const activeOption = getWorkStatusMeta(selectedStatus);
-  const hasUnsavedChanges = selectedStatus !== savedStatus;
-  const fallbackValue = (value) => {
-    if (value === null || value === undefined || String(value).trim() === '') {
-      return 'Not set';
-    }
-    return value;
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  // Saves on choice: availability is a one-tap decision, not a form.
+  const choose = async (value) => {
+    if (value === selected) return;
+    const previous = selected;
+    setSelected(value);
+    setState({ kind: 'saving', message: 'Saving…' });
     try {
-      const persistedStatus = await updateWorkStatus(selectedStatus);
-      setSavedStatus(persistedStatus);
-      setSelectedStatus(persistedStatus);
-      toast.success('Profile status updated');
+      const saved = await updateWorkStatus(value);
+      setState({ kind: 'saved', message: `Saved. You're now ${getWorkStatusMeta(saved).label.toLowerCase()}.` });
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to update status'];
-      messages.forEach((msg) => toast.error(msg));
+      setSelected(previous);
+      setState({ kind: 'error', message: errorMessage(err, "Couldn't change your availability. Try again.") });
     }
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h1>Profile</h1>
-          <div style={{ color: 'var(--text-secondary)' }}>Manage your availability status</div>
-        </div>
+    <section className="card profile-section" aria-labelledby="availability-heading">
+      <div className="profile-section-head">
+        <h2 id="availability-heading">Your availability</h2>
+        <p className="field-hint">Only available staff can be assigned new tickets.</p>
       </div>
-
-      <div className="card profile-layout">
-        <div className="profile-header">
-          <Avatar name={user?.name || user?.username} size={64} />
-          <div className="profile-header-meta">
-            <h2>{user?.name || user?.username}</h2>
-            <div className="profile-secondary-row">@{user?.username}</div>
-            <div className="profile-secondary-row">{user?.role}</div>
-            <span className={`badge work-status-badge ${activeOption.toneClass}`}>{activeOption.label}</span>
-          </div>
-        </div>
-
-        <div className="profile-details">
-          <h3>User Details</h3>
-          <div className="profile-details-grid">
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">User ID</div>
-              <div className="profile-detail-value">{fallbackValue(user?.id)}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Full Name</div>
-              <div className="profile-detail-value">{fallbackValue(user?.name)}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Username</div>
-              <div className="profile-detail-value">{user?.username ? `@${user.username}` : 'Not set'}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Role</div>
-              <div className="profile-detail-value">{fallbackValue(user?.role)}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Department</div>
-              <div className="profile-detail-value">{fallbackValue(user?.department)}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Phone</div>
-              <div className="profile-detail-value">{fallbackValue(user?.phone)}</div>
-            </div>
-            <div className="profile-detail-item">
-              <div className="profile-detail-label">Current Status</div>
-              <div className="profile-detail-value">{activeOption.label}</div>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <fieldset className="profile-status-fieldset">
-            <legend>Work status</legend>
-
-            {PROFILE_STATUS_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className={`profile-status-option ${selectedStatus === option.value ? 'selected' : ''}`}
-              >
+      <fieldset className="availability-options">
+        <legend className="visually-hidden">Availability</legend>
+        <div className="tile-grid tile-grid-3">
+          {PROFILE_STATUS_OPTIONS.map((option) => {
+            const checked = selected === option.value;
+            return (
+              <label key={option.value} className={`tile availability-tile${checked ? ' is-selected' : ''}`}>
                 <input
                   type="radio"
-                  name="workStatus"
+                  name="availability"
                   value={option.value}
-                  checked={selectedStatus === option.value}
-                  onChange={() => setSelectedStatus(option.value)}
+                  checked={checked}
+                  disabled={state.kind === 'saving'}
+                  onChange={() => choose(option.value)}
                 />
-                <div>
-                  <div className="profile-status-option-label">{option.label}</div>
-                  <div className="profile-status-option-description">{option.description}</div>
-                </div>
+                <span className="tile-label">
+                  <span className={`status-dot ${option.toneClass}`} aria-hidden="true" />
+                  {option.label}
+                </span>
+                <span className="tile-hint">{option.description}</span>
               </label>
-            ))}
-          </fieldset>
+            );
+          })}
+        </div>
+      </fieldset>
+      <p className={`save-state save-${state.kind}`} aria-live="polite">{state.message}</p>
+    </section>
+  );
+};
 
-          <div className="profile-actions">
-            <button type="submit" className="btn" disabled={!hasUnsavedChanges}>Save status</button>
-            {!hasUnsavedChanges && <span className="profile-saved-indicator">Saved</span>}
-          </div>
-        </form>
+const Profile = () => {
+  const { user } = useAuth();
+  const isEndUser = user?.role === 'END_USER';
+  const displayName = user?.name || user?.username;
+
+  const details = [
+    ['Full name', user?.name],
+    ['Username', user?.username ? `@${user.username}` : null],
+    ...(!isEndUser ? [['Role', roleLabel(user?.role)]] : []),
+    ['Department', user?.department],
+    ['Phone', user?.phone]
+  ];
+
+  return (
+    <div className={isEndUser ? 'portal-page profile-page' : 'profile-page'}>
+      <div className="profile-hero">
+        <Avatar name={displayName} size={56} />
+        <div>
+          <h1 className="page-title">{displayName}</h1>
+          <p className="page-lede">{isEndUser ? 'Your account' : roleLabel(user?.role)}</p>
+        </div>
       </div>
+
+      {!isEndUser && <Availability />}
+
+      <section className="card profile-section" aria-labelledby="details-heading">
+        <div className="profile-section-head">
+          <h2 id="details-heading">Account details</h2>
+          <p className="field-hint">{isEndUser ? 'Ask IT if anything here is wrong.' : 'Ask an admin to change these.'}</p>
+        </div>
+        <dl className="detail-list">
+          {details.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{valueOrNotSet(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 };

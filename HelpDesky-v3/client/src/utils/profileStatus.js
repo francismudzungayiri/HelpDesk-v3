@@ -2,19 +2,19 @@ export const PROFILE_STATUS_OPTIONS = [
   {
     value: 'AVAILABLE',
     label: 'Available',
-    description: 'If you are available at work.',
+    description: 'You can be assigned new tickets.',
     toneClass: 'available'
   },
   {
     value: 'ON_LEAVE',
     label: 'On leave',
-    description: 'Not available for work.',
+    description: "You won't appear in the assignee list.",
     toneClass: 'on-leave'
   },
   {
     value: 'AT_WORKSHOP',
     label: 'At workshop',
-    description: 'Doing work away.',
+    description: "Away on a job. You won't appear in the assignee list.",
     toneClass: 'at-workshop'
   }
 ];

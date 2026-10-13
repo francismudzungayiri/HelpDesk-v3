@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { ServiceBand } from '../components/TicketMarks';
+import LabelField from '../components/LabelField';
 
 const CreateTicket = () => {
   const navigate = useNavigate();
@@ -27,6 +29,33 @@ const CreateTicket = () => {
   const [loadingSubcategories, setLoadingSubcategories] = useState(false);
   const [loadingFields, setLoadingFields] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [autoFilledFrom, setAutoFilledFrom] = useState(null);
+
+  useEffect(() => {
+    if (isEndUser) return;
+    api.get('/users/end-users')
+      .then((res) => setPeople(res.data))
+      .catch(() => setPeople([]));
+  }, [isEndUser]);
+
+  // Picking a known person fills their department and phone; typing someone new leaves the fields to the agent.
+  const handleCallerChange = (event) => {
+    const value = event.target.value;
+    const match = people.find((person) => person.name.toLowerCase() === value.trim().toLowerCase());
+    setFormData((previous) => {
+      const next = { ...previous, caller_name: value };
+      if (match) {
+        next.department = match.department || previous.department;
+        next.phone = match.phone || previous.phone;
+      } else if (autoFilledFrom) {
+        next.department = '';
+        next.phone = '';
+      }
+      return next;
+    });
+    setAutoFilledFrom(match ? match.name : null);
+  };
 
   useEffect(() => {
     let active = true;
@@ -166,6 +195,7 @@ const CreateTicket = () => {
     if (field.field_type === 'select') {
       return (
         <select
+          id={`cf-${field.id}`}
           value={value ?? ''}
           onChange={(event) => handleFieldChange(field, event.target.value)}
           required={field.required}
@@ -183,6 +213,7 @@ const CreateTicket = () => {
     if (field.field_type === 'number') {
       return (
         <input
+          id={`cf-${field.id}`}
           type="number"
           value={value ?? ''}
           onChange={(event) => handleFieldChange(field, event.target.value)}
@@ -195,6 +226,7 @@ const CreateTicket = () => {
     if (field.field_type === 'date') {
       return (
         <input
+          id={`cf-${field.id}`}
           type="date"
           value={value ?? ''}
           onChange={(event) => handleFieldChange(field, event.target.value)}
@@ -205,20 +237,21 @@ const CreateTicket = () => {
 
     if (field.field_type === 'checkbox') {
       return (
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#172b4d' }}>
+        <label className="check-field">
           <input
+            id={`cf-${field.id}`}
             type="checkbox"
             checked={Boolean(value)}
             onChange={(event) => handleFieldChange(field, event.target.checked)}
-            style={{ width: 'auto' }}
           />
-          <span>{field.placeholder || 'Yes / No'}</span>
+          <span>{field.label}{field.placeholder ? ` (${field.placeholder})` : ''}</span>
         </label>
       );
     }
 
     return (
       <input
+        id={`cf-${field.id}`}
         type="text"
         value={value ?? ''}
         onChange={(event) => handleFieldChange(field, event.target.value)}
@@ -237,7 +270,7 @@ const CreateTicket = () => {
     }
 
     setSubmitting(true);
-    const loadId = toast.loading('Creating ticket...');
+    const loadId = toast.loading('Creating ticket…');
 
     try {
       const customFields = fieldDefinitions.map((field) => {
@@ -265,163 +298,151 @@ const CreateTicket = () => {
             phone: formData.phone || undefined
           };
 
-      await api.post('/tickets', payload);
-      toast.success('Ticket created successfully', { id: loadId });
-      navigate(isEndUser ? '/portal' : '/');
+      const res = await api.post('/tickets', payload);
+      toast.success(`Ticket #${res.data.id} created`, { id: loadId });
+      navigate(isEndUser ? '/portal' : `/tickets/${res.data.id}`);
     } catch (err) {
       const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to create ticket'];
-      messages.forEach((message) => toast.error(message, { id: loadId }));
+      toast.error(messages.join(' '), { id: loadId });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const PRIORITIES = [
+    { value: 'LOW', label: 'Low', hint: 'Annoying, but they can work' },
+    { value: 'MEDIUM', label: 'Medium', hint: 'Slowing them down' },
+    { value: 'HIGH', label: 'High', hint: "They can't work" }
+  ];
+
   return (
-    <div style={{ maxWidth: '760px', margin: '24px auto', width: '100%' }}>
-      <div className="card">
-        <h2 style={{ marginBottom: '20px' }}>{isEndUser ? 'Submit a Support Ticket' : 'Create New Ticket'}</h2>
+    <div className="create-page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Create ticket</h1>
+          <p className="page-lede">For problems reported by phone, email or in person.</p>
+        </div>
+      </div>
 
-        {loadingMeta ? (
-          <div>Loading ticket categories...</div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            {!isEndUser && (
-              <>
-                <div className="form-group">
-                  <label>Caller Name *</label>
-                  <input
-                    type="text"
-                    name="caller_name"
-                    value={formData.caller_name}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g. Jane Doe"
-                  />
-                </div>
+      {loadingMeta ? (
+        <div className="card" aria-live="polite">Loading categories…</div>
+      ) : (
+        <form className="card create-form" onSubmit={handleSubmit}>
+          <fieldset className="create-section">
+            <legend>Who's reporting it?</legend>
+            <div className="label-grid label-grid-2">
+              <LabelField
+                id="ct-caller"
+                label="Caller"
+                span={2}
+                hint={autoFilledFrom
+                  ? `Department and phone filled in from ${autoFilledFrom}'s account.`
+                  : 'Pick someone from the list to fill in their department and phone.'}
+              >
+                <input
+                  id="ct-caller"
+                  type="text"
+                  name="caller_name"
+                  list="ct-people"
+                  autoComplete="off"
+                  value={formData.caller_name}
+                  onChange={handleCallerChange}
+                  required
+                  placeholder="Start typing a name"
+                  aria-describedby="ct-caller-hint"
+                />
+                <datalist id="ct-people">
+                  {people.map((person) => (
+                    <option key={person.id} value={person.name}>{person.department || ''}</option>
+                  ))}
+                </datalist>
+              </LabelField>
+              <LabelField id="ct-department" label="Department">
+                <input id="ct-department" type="text" name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Finance" />
+              </LabelField>
+              <LabelField id="ct-phone" label="Phone (optional)">
+                <input id="ct-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} />
+              </LabelField>
+            </div>
+          </fieldset>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Department *</label>
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
-                      required
-                      placeholder="e.g. Finance"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Phone Number</label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Category *</label>
-                <select
-                  name="category_id"
-                  value={formData.category_id}
+          <fieldset className="create-section">
+            <legend>What's wrong?</legend>
+            <div className="label-grid label-grid-2">
+              <LabelField id="ct-description" label="Description" span={2}>
+                <textarea
+                  id="ct-description"
+                  name="description"
+                  value={formData.description}
                   onChange={handleChange}
                   required
-                >
-                  <option value="">Select category</option>
+                  rows="4"
+                  placeholder="In the caller's words, plus anything you've already checked."
+                />
+              </LabelField>
+              <LabelField id="ct-category" label="Category">
+                <select id="ct-category" name="category_id" value={formData.category_id} onChange={handleChange} required>
+                  <option value="">Choose a category</option>
                   {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
+                    <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
                 </select>
-              </div>
-
-              <div className="form-group">
-                <label>Subcategory *</label>
+              </LabelField>
+              <LabelField id="ct-subcategory" label="Subcategory">
                 <select
+                  id="ct-subcategory"
                   name="subcategory_id"
                   value={formData.subcategory_id}
                   onChange={handleChange}
                   required
                   disabled={!formData.category_id || loadingSubcategories}
                 >
-                  <option value="">{loadingSubcategories ? 'Loading...' : 'Select subcategory'}</option>
+                  <option value="">{loadingSubcategories ? 'Loading…' : formData.category_id ? 'Choose a subcategory' : 'Choose a category first'}</option>
                   {subcategories.map((subcategory) => (
-                    <option key={subcategory.id} value={subcategory.id}>
-                      {subcategory.name}
-                    </option>
+                    <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            {loadingFields && <div style={{ marginBottom: '12px', color: '#6b778c' }}>Loading custom fields...</div>}
-
-            {fieldDefinitions.length > 0 && (
-              <div className="card" style={{ marginBottom: '20px', background: '#f9fafb' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Ticket Details</h3>
-                {fieldDefinitions.map((field) => (
-                  <div className="form-group" key={field.id}>
-                    <label>
-                      {field.label}
-                      {field.required ? ' *' : ''}
-                    </label>
+              </LabelField>
+              {fieldDefinitions.map((field) => (
+                field.field_type === 'checkbox' ? (
+                  <div className="label-field" key={field.id}>{renderCustomField(field)}</div>
+                ) : (
+                  <LabelField key={field.id} id={`cf-${field.id}`} label={`${field.label}${field.required ? '' : ' (optional)'}`}>
                     {renderCustomField(field)}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!isEndUser && (
-              <div className="form-group">
-                <label>Priority *</label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="LOW">Low - Not urgent</option>
-                  <option value="MEDIUM">Medium - Standard issue</option>
-                  <option value="HIGH">High - Critical/Blocker</option>
-                </select>
-              </div>
-            )}
-
-            <div className="form-group">
-              <label>Description *</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                rows="5"
-                placeholder="Describe the issue..."
-              />
+                  </LabelField>
+                )
+              ))}
             </div>
+            {loadingFields && <p className="field-hint" aria-live="polite">Loading extra fields…</p>}
+          </fieldset>
 
-            <div className="form-row" style={{ marginTop: '20px', justifyContent: 'space-between' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => navigate(isEndUser ? '/portal' : '/')}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="btn" disabled={submitting}>
-                {submitting ? 'Creating...' : 'Create Ticket'}
-              </button>
+          <fieldset className="create-section">
+            <legend>Priority</legend>
+            <div className="segmented-choice" role="radiogroup" aria-label="Priority">
+              {PRIORITIES.map((option) => (
+                <label key={option.value} className={formData.priority === option.value ? 'is-selected' : ''}>
+                  <input
+                    type="radio"
+                    name="priority"
+                    value={option.value}
+                    checked={formData.priority === option.value}
+                    onChange={handleChange}
+                  />
+                  <ServiceBand priority={option.value} />
+                  <span className="segmented-hint">{option.hint}</span>
+                </label>
+              ))}
             </div>
-          </form>
-        )}
-      </div>
+          </fieldset>
+
+          <div className="create-actions">
+            <button type="button" className="btn-secondary" onClick={() => navigate('/')}>Cancel</button>
+            <button type="submit" className="btn" disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create ticket'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 };

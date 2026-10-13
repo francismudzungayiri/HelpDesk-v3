@@ -417,7 +417,7 @@ const TicketMetaAdmin = () => {
               <tbody>
                 {subcategoryList.length === 0 ? (
                   <tr>
-                    <td colSpan="3" style={{ color: '#6b778c' }}>No subcategories for this category yet.</td>
+                    <td colSpan="3" style={{ color: 'var(--text-secondary)' }}>No subcategories for this category yet.</td>
                   </tr>
                 ) : (
                   subcategoryList.map((subcategory) => (
@@ -578,7 +578,7 @@ const TicketMetaAdmin = () => {
               <tbody>
                 {fields.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ color: '#6b778c' }}>No fields in this scope yet.</td>
+                    <td colSpan="7" style={{ color: 'var(--text-secondary)' }}>No fields in this scope yet.</td>
                   </tr>
                 ) : (
                   fields.map((field) => (

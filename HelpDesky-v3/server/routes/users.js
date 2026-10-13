@@ -68,10 +68,17 @@ router.get('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (re
   return listUsersByRoleClause(res, "role = $1", [role]);
 });
 
-// POST /api/users - Create new user (admin or agent)
+// Agents manage end-user accounts only. Staff accounts and roles are admin-only.
+const agentForbidden = (res, message) => res.status(403).json({ message });
+
+// POST /api/users - Create a user (admins: any role; agents: end users only)
 router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
     const { username, password, role, name } = userCreateSchema.parse(req.body);
+
+    if (req.user.role === 'AGENT' && role !== 'END_USER') {
+      return agentForbidden(res, 'Only admins can create staff accounts.');
+    }
 
     // Check if username exists
     const userCheck = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
@@ -100,6 +107,17 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
   try {
     const { id } = req.params;
     const { name, role, work_status, password } = userUpdateSchema.parse(req.body);
+
+    if (req.user.role === 'AGENT') {
+      const target = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
+      if (target.rowCount === 0) return res.status(404).json({ message: 'User not found' });
+      if (target.rows[0].role !== 'END_USER') {
+        return agentForbidden(res, 'Only admins can change staff accounts.');
+      }
+      if (role && role !== 'END_USER') {
+        return agentForbidden(res, 'Only admins can change roles.');
+      }
+    }
     
     const updates = [];
     const values = [];
@@ -150,8 +168,8 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
   }
 });
 
-// DELETE /api/users/:id - Delete user (admin or agent)
-router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
+// DELETE /api/users/:id - Delete user (admin only)
+router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN'), async (req, res) => {
   const { id } = req.params;
   
   if (parseInt(id, 10) === req.user.id) {
@@ -167,9 +185,6 @@ router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asy
     if (targetUsername === SYSTEM_ADMIN_USERNAME) {
       return res.status(403).json({ message: 'System admin account cannot be deleted' });
     }
-    if (req.user.role === 'AGENT' && targetUser.role === 'ADMIN') {
-      return res.status(403).json({ message: 'Agents cannot delete admin accounts' });
-    }
 
     const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
     
@@ -178,7 +193,7 @@ router.delete('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asy
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     if (err.code === '23503') { // ForeignKeyViolation
-      res.status(400).json({ message: 'Cannot delete user with assigned tickets. Reassign tickets first.' });
+      res.status(400).json({ message: 'This account is linked to tickets (reported, assigned, replies or notes), so it can\'t be removed. Keep it to preserve the ticket history.' });
     } else {
       console.error('Delete user failed:', err);
       res.status(500).json({ message: 'Failed to delete user' });

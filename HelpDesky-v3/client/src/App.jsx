@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation }
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import NavBar from './components/NavBar';
+import PortalBar from './components/PortalBar';
 import Login from './pages/Login';
 import CreateTicket from './pages/CreateTicket';
 import TicketList from './pages/TicketList';
@@ -15,6 +16,8 @@ import TicketMetaAdmin from './pages/TicketMetaAdmin';
 import Register from './pages/Register';
 import EndUserPortal from './pages/EndUserPortal';
 import Profile from './pages/Profile';
+import ReportProblem from './pages/ReportProblem';
+import EndUserTicket from './pages/EndUserTicket';
 
 const ProtectedRoute = () => {
   const { user, loading } = useAuth();
@@ -24,7 +27,7 @@ const ProtectedRoute = () => {
     return (
       <div className="loading-screen">
         <div className="spinner"></div>
-        <div style={{ color: '#6b778c', fontSize: '18px' }}>Loading HelpDesky...</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>Loading HelpDesky...</div>
       </div>
     );
   }
@@ -37,6 +40,17 @@ const ProtectedRoute = () => {
     return <Navigate to="/portal" replace />;
   }
 
+  if (user.role === 'END_USER') {
+    return (
+      <div className="portal-shell">
+        <PortalBar />
+        <main className="portal-main">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <NavBar />
@@ -45,6 +59,12 @@ const ProtectedRoute = () => {
       </div>
     </div>
   );
+};
+
+// End users get their own report flow and ticket page; staff keep the full tools.
+const ByRole = ({ endUser, staff }) => {
+  const { user } = useAuth();
+  return user?.role === 'END_USER' ? endUser : staff;
 };
 
 const RoleRoute = ({ roles, children }) => {
@@ -87,8 +107,8 @@ function App() {
                 </RoleRoute>
               )}
             />
-            <Route path="/tickets/new" element={<CreateTicket />} />
-            <Route path="/tickets/:id" element={<TicketDetail />} />
+            <Route path="/tickets/new" element={<ByRole endUser={<ReportProblem />} staff={<CreateTicket />} />} />
+            <Route path="/tickets/:id" element={<ByRole endUser={<EndUserTicket />} staff={<TicketDetail />} />} />
             <Route path="/profile" element={<Profile />} />
             <Route
               path="/admin"

@@ -5,7 +5,8 @@ const seedTicketMeta = async (client) => {
     { name: 'Hardware', description: 'Physical devices and peripherals', sort: 1 },
     { name: 'Software', description: 'Applications and software tools', sort: 2 },
     { name: 'Network', description: 'Connectivity and network services', sort: 3 },
-    { name: 'Access', description: 'Account and permission requests', sort: 4 }
+    { name: 'Access', description: 'Account and permission requests', sort: 4 },
+    { name: 'Not sure', description: 'Describe the problem and IT will sort it out', sort: 99 }
   ];
 
   const categoryIds = {};
@@ -40,7 +41,8 @@ const seedTicketMeta = async (client) => {
     { category: 'Network', name: 'Internet', sort: 3 },
     { category: 'Access', name: 'Password Reset', sort: 1 },
     { category: 'Access', name: 'Shared Drive', sort: 2 },
-    { category: 'Access', name: 'Account Provisioning', sort: 3 }
+    { category: 'Access', name: 'Account Provisioning', sort: 3 },
+    { category: 'Not sure', name: 'Needs triage', sort: 1 }
   ];
 
   const subcategoryIds = {};
@@ -319,6 +321,7 @@ async function migrate() {
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_category_id ON tickets(category_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_subcategory_id ON tickets(subcategory_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at DESC)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_updated_at ON tickets(updated_at DESC)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket_id ON ticket_comments(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_ticket_id ON ticket_custom_field_values(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_field_id ON ticket_custom_field_values(field_definition_id)');

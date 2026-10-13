@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api';
+import { priorityLabel, statusLabel } from '../utils/labels';
 
 const DEFAULT_FILTERS = {
   start_date: '',
@@ -49,19 +50,22 @@ const TABS = [
   { id: 'SLA', label: 'SLA' }
 ];
 
+// Chart fills reuse the badge inks so a status or priority is the same colour everywhere.
 const STATUS_COLORS = {
-  OPEN: '#DE350B',
-  IN_PROGRESS: '#0052cc',
-  RESOLVED: '#00875A'
+  OPEN: 'var(--open-ink)',
+  IN_PROGRESS: 'var(--progress-ink)',
+  RESOLVED: 'var(--resolved-ink)'
 };
 
 const PRIORITY_COLORS = {
-  HIGH: '#DE350B',
-  MEDIUM: '#FF991F',
-  LOW: '#00875A'
+  HIGH: 'var(--alert-ink)',
+  MEDIUM: 'var(--caution-ink)',
+  LOW: 'var(--resolved-ink)'
 };
 
-const CATEGORY_COLOR = '#4C9AFF';
+// Single-series charts (category, volume) carry no status meaning, so they stay neutral.
+const NEUTRAL_SERIES_COLOR = 'var(--nav-slate)';
+const BAR_TRACK = 'var(--bar-track)';
 
 const buildParams = (filters) => {
   const entries = Object.entries(filters).filter(([, value]) => value !== '' && value !== null && value !== undefined);
@@ -156,8 +160,8 @@ const Reports = () => {
       ['Section', 'Metric', 'Value'],
       ['Filters', 'Start Date', filtersApplied.start_date || 'All'],
       ['Filters', 'End Date', filtersApplied.end_date || 'All'],
-      ['Filters', 'Status', filtersApplied.status || 'All'],
-      ['Filters', 'Priority', filtersApplied.priority || 'All'],
+      ['Filters', 'Status', (filtersApplied.status ? statusLabel(filtersApplied.status) : 'All')],
+      ['Filters', 'Priority', (filtersApplied.priority ? priorityLabel(filtersApplied.priority) : 'All')],
       ['Filters', 'Assignee', filtersApplied.assignee_id || 'All'],
       ['Filters', 'Category', filtersApplied.category_id || 'All'],
       ['Summary', 'Total Tickets', summary.total_tickets],
@@ -175,11 +179,11 @@ const Reports = () => {
     ];
 
     statusDistribution.forEach((item) => {
-      rows.push(['Status Distribution', item.status, item.count]);
+      rows.push(['Status Distribution', statusLabel(item.status), item.count]);
     });
 
     priorityDistribution.forEach((item) => {
-      rows.push(['Priority Distribution', item.priority, item.count]);
+      rows.push(['Priority Distribution', priorityLabel(item.priority), item.count]);
     });
 
     categoryDistribution.forEach((item) => {
@@ -215,7 +219,7 @@ const Reports = () => {
           <meta charset="utf-8" />
           <title>Helpdesk Reports</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #172B4D; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; padding: 20px; color: #172B4D; }
             h1 { margin: 0 0 16px; font-size: 20px; }
             table { width: 100%; border-collapse: collapse; }
             th, td { border: 1px solid #dfe1e6; padding: 8px; text-align: left; font-size: 12px; }
@@ -313,7 +317,7 @@ const Reports = () => {
     return (
       <div className="card">
         <h3 style={{ marginBottom: '8px' }}>Error loading reports</h3>
-        <p style={{ marginTop: 0, color: '#6b778c' }}>{error}</p>
+        <p style={{ marginTop: 0, color: 'var(--text-secondary)' }}>{error}</p>
         <button type="button" onClick={() => loadReports(filters)} className="btn-secondary">Retry</button>
       </div>
     );
@@ -326,7 +330,7 @@ const Reports = () => {
       <div className="page-header">
         <h2>System Reports</h2>
         <div className="page-header-actions">
-          {loading ? <span style={{ color: '#6b778c', fontSize: '13px' }}>Refreshing...</span> : null}
+          {loading ? <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Refreshing...</span> : null}
           <select
             aria-label="Export report"
             className="btn-secondary"
@@ -374,7 +378,7 @@ const Reports = () => {
               >
                 <option value="">All</option>
                 {statusOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option}>{statusLabel(option)}</option>
                 ))}
               </select>
             </div>
@@ -388,7 +392,7 @@ const Reports = () => {
               >
                 <option value="">All</option>
                 {priorityOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
+                  <option key={option} value={option}>{priorityLabel(option)}</option>
                 ))}
               </select>
             </div>
@@ -449,16 +453,16 @@ const Reports = () => {
         <div>
           <div className="card-grid cols-3" style={{ marginBottom: '20px' }}>
             <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: '#6b778c' }}>Total Tickets</h4>
+              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>Total Tickets</h4>
               <div style={{ fontSize: '30px', fontWeight: '700' }}>{summary.total_tickets}</div>
             </div>
             <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: '#6b778c' }}>Open</h4>
-              <div style={{ fontSize: '30px', fontWeight: '700', color: '#DE350B' }}>{summary.open_tickets}</div>
+              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>Open</h4>
+              <div style={{ fontSize: '30px', fontWeight: '700', color: 'var(--open-ink)' }}>{summary.open_tickets}</div>
             </div>
             <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: '#6b778c' }}>In Progress</h4>
-              <div style={{ fontSize: '30px', fontWeight: '700', color: '#0052cc' }}>{summary.in_progress_tickets}</div>
+              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>In Progress</h4>
+              <div style={{ fontSize: '30px', fontWeight: '700', color: 'var(--progress-ink)' }}>{summary.in_progress_tickets}</div>
             </div>
           </div>
 
@@ -470,10 +474,10 @@ const Reports = () => {
                 {statusDistribution.map((item) => (
                   <div key={item.status} style={{ marginBottom: '12px' }}>
                     <div className="flex justify-between" style={{ fontSize: '14px', marginBottom: '5px' }}>
-                      <span>{item.status}</span>
+                      <span>{statusLabel(item.status)}</span>
                       <span>{item.count}</span>
                     </div>
-                    <div style={{ background: '#eee', borderRadius: '4px', height: '10px', width: '100%' }}>
+                    <div style={{ background: BAR_TRACK, borderRadius: '4px', height: '10px', width: '100%' }}>
                       <div
                         style={{
                           background: STATUS_COLORS[item.status] || '#42526e',
@@ -495,10 +499,10 @@ const Reports = () => {
                 {priorityDistribution.map((item) => (
                   <div key={item.priority} style={{ marginBottom: '12px' }}>
                     <div className="flex justify-between" style={{ fontSize: '14px', marginBottom: '5px' }}>
-                      <span>{item.priority}</span>
+                      <span>{priorityLabel(item.priority)}</span>
                       <span>{item.count}</span>
                     </div>
-                    <div style={{ background: '#eee', borderRadius: '4px', height: '10px', width: '100%' }}>
+                    <div style={{ background: BAR_TRACK, borderRadius: '4px', height: '10px', width: '100%' }}>
                       <div
                         style={{
                           background: PRIORITY_COLORS[item.priority] || '#42526e',
@@ -524,10 +528,10 @@ const Reports = () => {
                     <span>{item.category}</span>
                     <span>{item.count}</span>
                   </div>
-                  <div style={{ background: '#eee', borderRadius: '4px', height: '10px', width: '100%' }}>
+                  <div style={{ background: BAR_TRACK, borderRadius: '4px', height: '10px', width: '100%' }}>
                     <div
                       style={{
-                        background: CATEGORY_COLOR,
+                        background: NEUTRAL_SERIES_COLOR,
                         borderRadius: '4px',
                         height: '100%',
                         width: `${(item.count / getMax(categoryDistribution)) * 100}%`
@@ -544,7 +548,7 @@ const Reports = () => {
       {activeTab === 'TRENDS' ? (
         <div className="card">
           <h3>Tickets Over Time</h3>
-          <p style={{ color: '#6b778c', marginTop: '6px' }}>Ticket creation volume for the selected filters.</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '6px' }}>Ticket creation volume for the selected filters.</p>
 
           {ticketsOverTime.length === 0 ? <p style={{ marginTop: '16px' }}>No trend data for current filters.</p> : null}
 
@@ -555,10 +559,10 @@ const Reports = () => {
                   <span>{item.date}</span>
                   <span>{item.count}</span>
                 </div>
-                <div style={{ background: '#eee', borderRadius: '4px', height: '10px', width: '100%' }}>
+                <div style={{ background: BAR_TRACK, borderRadius: '4px', height: '10px', width: '100%' }}>
                   <div
                     style={{
-                      background: '#36B37E',
+                      background: NEUTRAL_SERIES_COLOR,
                       borderRadius: '4px',
                       height: '100%',
                       width: `${(item.count / trendMax) * 100}%`
@@ -628,7 +632,7 @@ const Reports = () => {
                 <tbody>
                   {['HIGH', 'MEDIUM', 'LOW'].map((priority) => (
                     <tr key={priority}>
-                      <td>{priority}</td>
+                      <td>{priorityLabel(priority)}</td>
                       <td>{slaThresholdHours[priority]}</td>
                     </tr>
                   ))}

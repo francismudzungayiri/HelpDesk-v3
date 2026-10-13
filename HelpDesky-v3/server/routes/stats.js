@@ -38,6 +38,10 @@ router.get('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (re
     const openTicketsRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE status = 'OPEN'");
     stats.total_open = parseInt(openTicketsRes.rows[0].count, 10);
 
+    // 1b. Active tickets nobody has taken yet
+    const unassignedRes = await pool.query("SELECT COUNT(*) as count FROM tickets WHERE status IN ('OPEN', 'IN_PROGRESS') AND assignee_id IS NULL");
+    stats.unassigned_active = parseInt(unassignedRes.rows[0].count, 10);
+
     // 2. Total Users
     const usersRes = await pool.query("SELECT COUNT(*) as count FROM users");
     stats.total_users = parseInt(usersRes.rows[0].count, 10);
@@ -52,18 +56,21 @@ router.get('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (re
 
     // 5. Staff Workload
     const sql = `
-      SELECT u.name, 
+      SELECT u.id, u.name, u.work_status,
              SUM(CASE WHEN t.status IN ('OPEN', 'IN_PROGRESS') THEN 1 ELSE 0 END) as active_tickets,
              SUM(CASE WHEN t.status = 'RESOLVED' THEN 1 ELSE 0 END) as resolved_tickets
       FROM users u
       LEFT JOIN tickets t ON u.id = t.assignee_id
       WHERE u.role IN ('ADMIN', 'AGENT')
-      GROUP BY u.id, u.name
+      GROUP BY u.id, u.name, u.work_status
+      ORDER BY u.name
     `;
     
     const staffStatsRes = await pool.query(sql);
     stats.staff_stats = staffStatsRes.rows.map(row => ({
+      id: row.id,
       name: row.name,
+      work_status: row.work_status,
       active_tickets: parseInt(row.active_tickets || 0, 10),
       resolved_tickets: parseInt(row.resolved_tickets || 0, 10)
     }));

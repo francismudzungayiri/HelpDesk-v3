@@ -1,254 +1,302 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FiAlertCircle, FiChevronDown, FiPlus, FiX } from 'react-icons/fi';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
+import { errorMessage } from '../utils/errors';
 import useTicketEvents from '../hooks/useTicketEvents';
+import { getLastChanged, getStatusPhrase, getTicketArea, getTicketTitle, relativeTime } from '../utils/ticketStatus';
 
-const ITEMS_PER_PAGE = 10;
+const PAGE_SIZE = 7;
+const FLASH_MS = 1600;
+
+const EMPTY_SECTION = { items: [], total: 0, pages: 0 };
+
+// Loads pages 1..pageCount of one view and joins them, so a refresh keeps what's already on screen.
+const fetchSection = async (view, pageCount) => {
+  const responses = await Promise.all(
+    Array.from({ length: Math.max(1, pageCount) }, (_, index) => api.get(
+      `/tickets?view=${view}&sort=updated&page=${index + 1}&page_size=${PAGE_SIZE}`
+    ))
+  );
+  const seen = new Set();
+  const items = responses.flatMap((r) => r.data.tickets).filter((t) => (seen.has(t.id) ? false : seen.add(t.id)));
+  return { items, total: responses[0].data.total, pages: Math.max(1, pageCount), counts: responses[0].data.counts };
+};
+
+const BoardRow = ({ ticket, flashing }) => {
+  const status = getStatusPhrase(ticket);
+  const area = getTicketArea(ticket);
+
+  return (
+    <li>
+      <Link
+        to={`/tickets/${ticket.id}`}
+        className={`board-row tone-${status.tone}${flashing ? ' is-flashing' : ''}`}
+      >
+        <span className="board-num">#{ticket.id}</span>
+        <span className="board-what">
+          <span className="board-title">{getTicketTitle(ticket.description)}</span>
+          <span className="board-meta">
+            {[area, `Reported ${relativeTime(ticket.created_at)}`].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+        <span className="board-status">
+          <span className="board-phrase">{status.phrase}</span>
+          <span className="board-when">Updated {relativeTime(getLastChanged(ticket))}</span>
+        </span>
+      </Link>
+    </li>
+  );
+};
+
+const BoardSkeleton = () => (
+  <ul className="board-list" aria-hidden="true">
+    {[0, 1, 2].map((row) => (
+      <li key={row} className="board-row board-row-skeleton">
+        <span className="skeleton-block" style={{ width: '36px' }} />
+        <span className="board-what">
+          <span className="skeleton-block" style={{ width: '70%' }} />
+          <span className="skeleton-block skeleton-thin" style={{ width: '40%' }} />
+        </span>
+        <span className="skeleton-block skeleton-status" />
+      </li>
+    ))}
+  </ul>
+);
 
 const EndUserPortal = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [tickets, setTickets] = useState([]);
+  const [openSection, setOpenSection] = useState(EMPTY_SECTION);
+  const [fixedSection, setFixedSection] = useState(EMPTY_SECTION);
+  const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [loadError, setLoadError] = useState('');
+  const [showFixed, setShowFixed] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(null);
+  const pagesRef = useRef({ open: 1, fixed: 0 });
+  const [flashIds, setFlashIds] = useState(() => new Set());
   const mountedRef = useRef(true);
+  const flashTimers = useRef([]);
+
+  const sentId = location.state?.sentId ? Number(location.state.sentId) : null;
 
   useEffect(() => {
     mountedRef.current = true;
+    const timers = flashTimers.current;
     return () => {
       mountedRef.current = false;
+      timers.forEach(clearTimeout);
     };
   }, []);
 
+  const flash = useCallback((ticketId) => {
+    if (!Number.isFinite(ticketId)) return;
+    setFlashIds((previous) => new Set(previous).add(ticketId));
+    const timer = setTimeout(() => {
+      if (!mountedRef.current) return;
+      setFlashIds((previous) => {
+        const next = new Set(previous);
+        next.delete(ticketId);
+        return next;
+      });
+    }, FLASH_MS);
+    flashTimers.current.push(timer);
+  }, []);
+
   const fetchTickets = useCallback(async ({ background = false } = {}) => {
-    if (!background && mountedRef.current) {
+    if (!background) {
       setLoading(true);
+      setLoadError('');
     }
 
     try {
-      const response = await api.get('/tickets');
-      if (mountedRef.current) {
-        setTickets(response.data);
-      }
+      const [open, fixed] = await Promise.all([
+        fetchSection('active', pagesRef.current.open),
+        pagesRef.current.fixed > 0 ? fetchSection('resolved', pagesRef.current.fixed) : null
+      ]);
+      if (!mountedRef.current) return false;
+      setOpenSection(open);
+      setCounts(open.counts);
+      if (fixed) setFixedSection(fixed);
+      return true;
     } catch (err) {
       console.error('Error fetching tickets:', err);
-      if (!background) {
-        toast.error('Failed to load your tickets');
-      }
+      if (!background && mountedRef.current) setLoadError(errorMessage(err, "We couldn't load your tickets. Try again."));
+      return false;
     } finally {
-      if (!background && mountedRef.current) {
-        setLoading(false);
-      }
+      if (!background && mountedRef.current) setLoading(false);
     }
   }, []);
 
+  const loadMore = async (section) => {
+    const key = section === 'active' ? 'open' : 'fixed';
+    const nextPages = pagesRef.current[key] + 1;
+    setLoadingMore(key);
+    try {
+      const result = await fetchSection(section, nextPages);
+      pagesRef.current[key] = nextPages;
+      if (key === 'open') setOpenSection(result);
+      else setFixedSection(result);
+      setCounts(result.counts);
+    } catch (err) {
+      setLoadError(errorMessage(err, "We couldn't load more tickets. Try again."));
+    } finally {
+      setLoadingMore(null);
+    }
+  };
+
+  const toggleFixed = () => {
+    const opening = !showFixed;
+    setShowFixed(opening);
+    if (opening && pagesRef.current.fixed === 0) {
+      pagesRef.current.fixed = 0;
+      loadMore('resolved');
+    }
+  };
+
   useEffect(() => {
-    fetchTickets({ background: false });
+    fetchTickets();
   }, [fetchTickets]);
 
-  useTicketEvents(() => {
-    fetchTickets({ background: true });
+  useEffect(() => {
+    if (sentId) flash(sentId);
+  }, [sentId, flash]);
+
+  useTicketEvents(async ({ payload }) => {
+    const loaded = await fetchTickets({ background: true });
+    if (loaded) flash(Number(payload?.ticket_id));
   }, Boolean(user));
 
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'OPEN':
-        return '#f59e0b';
-      case 'IN_PROGRESS':
-        return '#3b82f6';
-      case 'RESOLVED':
-        return '#10b981';
-      default:
-        return '#6b7280';
-    }
+  const dismissConfirmation = () => {
+    navigate(location.pathname, { replace: true, state: null });
   };
 
-  const getPriorityBadgeColor = (priority) => {
-    switch (priority) {
-      case 'HIGH':
-        return '#ef4444';
-      case 'MEDIUM':
-        return '#f59e0b';
-      case 'LOW':
-        return '#10b981';
-      default:
-        return '#6b7280';
-    }
-  };
+  const openTickets = openSection.items;
+  const fixedTickets = fixedSection.items;
+  const openCount = counts?.active ?? 0;
+  const fixedCount = counts?.resolved ?? 0;
+  const totalCount = counts?.all ?? 0;
+  const greetingName = (user?.name || user?.username || '').split(' ')[0];
 
-  const stats = {
-    total: tickets.length,
-    open: tickets.filter((ticket) => ticket.status === 'OPEN').length,
-    inProgress: tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length,
-    resolved: tickets.filter((ticket) => ticket.status === 'RESOLVED').length
-  };
-
-  const totalPages = Math.max(1, Math.ceil(tickets.length / ITEMS_PER_PAGE));
-  const currentPageClamped = Math.min(currentPage, totalPages);
-  const pageStartIndex = (currentPageClamped - 1) * ITEMS_PER_PAGE;
-  const paginatedTickets = tickets.slice(pageStartIndex, pageStartIndex + ITEMS_PER_PAGE);
-  const startRowNumber = tickets.length === 0 ? 0 : pageStartIndex + 1;
-  const endRowNumber = tickets.length === 0 ? 0 : pageStartIndex + paginatedTickets.length;
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: '15px' }}>
-        <div style={{ color: '#6b778c', fontSize: '18px' }}>Loading your tickets...</div>
-      </div>
-    );
+  let summary = 'Report a problem, or check on one you have already sent.';
+  if (!loading && !loadError && totalCount > 0) {
+    summary = openCount === 0
+      ? 'Nothing open right now. Everything you reported has been fixed.'
+      : `You have ${openCount} open ${openCount === 1 ? 'ticket' : 'tickets'}.`;
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ margin: 0, marginBottom: '10px' }}>My Support Tickets</h1>
-        <p style={{ color: '#6b778c', margin: 0 }}>Welcome, {user?.name}</p>
+    <div className="portal-page">
+      <div className="portal-intro">
+        <h1>Hello{greetingName ? `, ${greetingName}` : ''}</h1>
+        <p>{summary}</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#667eea' }}>{stats.total}</div>
-          <div style={{ color: '#6b778c', marginTop: '5px' }}>Total Tickets</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.open}</div>
-          <div style={{ color: '#6b778c', marginTop: '5px' }}>Open</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.inProgress}</div>
-          <div style={{ color: '#6b778c', marginTop: '5px' }}>In Progress</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#10b981' }}>{stats.resolved}</div>
-          <div style={{ color: '#6b778c', marginTop: '5px' }}>Resolved</div>
-        </div>
-      </div>
+      {sentId && (
+        <section className="sent-band" aria-live="polite">
+          <div className="sent-number">#{sentId}</div>
+          <div className="sent-copy">
+            <h2>Sent to IT</h2>
+            <p>It's on your board below. You'll see here when someone picks it up.</p>
+          </div>
+          <button type="button" className="sent-dismiss" onClick={dismissConfirmation} aria-label="Dismiss confirmation">
+            <FiX size={18} aria-hidden="true" />
+          </button>
+        </section>
+      )}
 
-      <div style={{ marginBottom: '20px' }}>
-        <button className="btn" onClick={() => navigate('/tickets/new')}>
-          + New Ticket
-        </button>
-      </div>
+      <Link to="/tickets/new" className="report-cta">
+        <FiPlus size={22} aria-hidden="true" />
+        <span>Report a problem</span>
+      </Link>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Your Tickets</h3>
+      <section className="board" aria-labelledby="board-heading">
+        <div className="board-head">
+          <h2 id="board-heading">Your tickets</h2>
+        </div>
 
-        {tickets.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#6b778c' }}>
-            <div style={{ fontSize: '48px', marginBottom: '10px' }}>📋</div>
-            <p>No tickets yet. Click "New Ticket" to get started.</p>
+        {loading ? (
+          <BoardSkeleton />
+        ) : loadError && !counts ? (
+          <div className="board-message board-error" role="alert">
+            <FiAlertCircle size={20} aria-hidden="true" />
+            <div>
+              <p>{loadError}</p>
+              <button type="button" className="btn-secondary" onClick={() => fetchTickets()}>Try again</button>
+            </div>
+          </div>
+        ) : totalCount === 0 ? (
+          <div className="board-message board-empty">
+            <p className="board-empty-title">Nothing reported yet.</p>
+            <p>When something stops working, like a laptop, a password or the Wi-Fi, tell IT here. Each problem gets a ticket number and shows up on this board, so you can see where it stands.</p>
           </div>
         ) : (
-          <div>
-            <div className="table-responsive table-wide">
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #dfe1e6' }}>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>ID</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Description</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Category</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Priority</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Created</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedTickets.map((ticket) => (
-                    <tr key={ticket.id} style={{ borderBottom: '1px solid #dfe1e6' }}>
-                      <td style={{ padding: '12px' }}>#{ticket.id}</td>
-                      <td style={{ padding: '12px', maxWidth: '300px' }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.description}</div>
-                      </td>
-                      <td style={{ padding: '12px', color: '#42526e' }}>
-                        {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : '-'}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: '500',
-                            background: getPriorityBadgeColor(ticket.priority) + '20',
-                            color: getPriorityBadgeColor(ticket.priority)
-                          }}
-                        >
-                          {ticket.priority}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: '500',
-                            background: getStatusBadgeColor(ticket.status) + '20',
-                            color: getStatusBadgeColor(ticket.status)
-                          }}
-                        >
-                          {ticket.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', color: '#6b778c', fontSize: '14px' }}>{new Date(ticket.created_at).toLocaleDateString()}</td>
-                      <td style={{ padding: '12px' }}>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => navigate(`/tickets/${ticket.id}`)}
-                          style={{ padding: '6px 12px', fontSize: '14px' }}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            <div className="board-columns" aria-hidden="true">
+              <span>Ticket</span>
+              <span>What you reported</span>
+              <span>Where it stands</span>
             </div>
 
-            <div
-              style={{
-                marginTop: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '10px',
-                flexWrap: 'wrap'
-              }}
-            >
-              <div style={{ fontSize: '13px', color: '#6b778c' }}>
-                Showing {startRowNumber}-{endRowNumber} of {tickets.length}
+            {openTickets.length > 0 ? (
+              <>
+                <ul className="board-list">
+                  {openTickets.map((ticket) => (
+                    <BoardRow key={ticket.id} ticket={ticket} flashing={flashIds.has(ticket.id)} />
+                  ))}
+                </ul>
+                {openSection.total > openTickets.length && (
+                  <button type="button" className="board-more" onClick={() => loadMore('active')} disabled={loadingMore === 'open'}>
+                    {loadingMore === 'open' ? 'Loading…' : `Show more open tickets (${openSection.total - openTickets.length} more)`}
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="board-message board-quiet">
+                <p>No open tickets.</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            )}
+
+            {loadError && <p className="board-inline-error" role="alert">{loadError}</p>}
+
+            {fixedCount > 0 && (
+              <div className="board-fixed">
                 <button
                   type="button"
-                  className="btn-secondary"
-                  onClick={() => setCurrentPage(Math.max(1, currentPageClamped - 1))}
-                  disabled={currentPageClamped === 1}
-                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                  className="board-fixed-toggle"
+                  aria-expanded={showFixed}
+                  aria-controls="board-fixed-list"
+                  onClick={toggleFixed}
                 >
-                  Previous
+                  <FiChevronDown size={16} aria-hidden="true" className="board-fixed-chevron" />
+                  {showFixed ? 'Hide fixed' : 'Show fixed'} ({fixedCount})
                 </button>
-                <span style={{ fontSize: '13px', color: '#42526e' }}>
-                  Page {currentPageClamped} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPageClamped + 1))}
-                  disabled={currentPageClamped === totalPages}
-                  style={{ padding: '6px 12px', fontSize: '13px' }}
-                >
-                  Next
-                </button>
+
+                {showFixed && (
+                  <>
+                    <ul className="board-list" id="board-fixed-list" aria-busy={loadingMore === 'fixed' || undefined}>
+                      {fixedTickets.map((ticket) => (
+                        <BoardRow key={ticket.id} ticket={ticket} flashing={flashIds.has(ticket.id)} />
+                      ))}
+                    </ul>
+                    {fixedTickets.length === 0 && loadingMore === 'fixed' && (
+                      <p className="board-loading-more" aria-live="polite">Loading fixed tickets…</p>
+                    )}
+                    {fixedSection.total > fixedTickets.length && fixedTickets.length > 0 && (
+                      <button type="button" className="board-more" onClick={() => loadMore('resolved')} disabled={loadingMore === 'fixed'}>
+                        {loadingMore === 'fixed' ? 'Loading…' : `Show older (${fixedSection.total - fixedTickets.length} more)`}
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
-      </div>
+      </section>
     </div>
   );
 };

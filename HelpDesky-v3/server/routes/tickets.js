@@ -201,37 +201,62 @@ const normalizeCustomFields = (definitions, submittedFields) => {
   return normalized;
 };
 
-// GET /api/tickets - List all tickets (with filters)
+// Views and sorts the list understands. Values are fixed SQL fragments, never user input.
+const LIST_VIEWS = {
+  active: "t.status IN ('OPEN', 'IN_PROGRESS')",
+  unassigned: "t.status IN ('OPEN', 'IN_PROGRESS') AND t.assignee_id IS NULL",
+  resolved: "t.status = 'RESOLVED'",
+  all: 'TRUE'
+};
+
+const LIST_SORTS = {
+  updated: 'COALESCE(t.updated_at, t.created_at) DESC, t.id DESC',
+  newest: 't.created_at DESC, t.id DESC',
+  oldest: 't.created_at ASC, t.id ASC',
+  priority: "CASE t.priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 ELSE 4 END, t.created_at ASC, t.id ASC",
+  // Kept for older callers
+  date_asc: 't.created_at ASC, t.id ASC'
+};
+
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 7;
+
+const escapeLike = (value) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+
+// GET /api/tickets - List tickets.
+// With ?page=N the response is one page: { tickets, total, page, page_size, total_pages, counts }.
+// Without ?page it returns the full array, as it always has.
 router.get('/', authenticateToken, async (req, res) => {
-  const { status, sort, assignee_id, scope } = req.query;
+  const { status, assignee_id, scope } = req.query;
+  const view = req.query.view || 'all';
+  const sort = req.query.sort || 'newest';
+  const search = String(req.query.q || '').trim();
+  const paged = req.query.page !== undefined;
 
-  let sql = `
-    SELECT
-      t.*,
-      u.name as assignee_name,
-      u.username as assignee_username,
-      c.name as category_name,
-      s.name as subcategory_name
-    FROM tickets t
-    LEFT JOIN users u ON t.assignee_id = u.id
-    LEFT JOIN ticket_categories c ON t.category_id = c.id
-    LEFT JOIN ticket_subcategories s ON t.subcategory_id = s.id
-    WHERE 1=1
-  `;
+  if (!LIST_VIEWS[view]) {
+    return res.status(400).json({ message: 'Invalid view' });
+  }
+  if (!LIST_SORTS[sort]) {
+    return res.status(400).json({ message: 'Invalid sort' });
+  }
 
+  const conditions = [];
   const params = [];
-  let paramCount = 1;
+  const addParam = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+
+  if (req.user.role === 'END_USER') {
+    conditions.push(`t.created_by = ${addParam(req.user.id)}`);
+  }
 
   if (status) {
-    sql += ` AND t.status = $${paramCount}`;
-    params.push(status);
-    paramCount++;
+    conditions.push(`t.status = ${addParam(status)}`);
   }
 
   if (assignee_id) {
-    sql += ` AND t.assignee_id = $${paramCount}`;
-    params.push(assignee_id);
-    paramCount++;
+    conditions.push(`t.assignee_id = ${addParam(assignee_id)}`);
   }
 
   if (scope !== undefined) {
@@ -240,43 +265,97 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Invalid scope filter' });
     }
 
-    sql += ` AND (
-      t.created_by = $${paramCount}
-      OR t.assignee_id = $${paramCount}
+    const me = addParam(req.user.id);
+    conditions.push(`(
+      t.created_by = ${me}
+      OR t.assignee_id = ${me}
       OR EXISTS (
         SELECT 1
         FROM ticket_history h
         WHERE h.ticket_id = t.id
-          AND h.user_id = $${paramCount}
+          AND h.user_id = ${me}
           AND h.action = 'STATUS_CHANGE'
           AND h.new_value = 'RESOLVED'
       )
-    )`;
-    params.push(req.user.id);
-    paramCount++;
+    )`);
   }
 
-  if (req.user.role === 'END_USER') {
-    sql += ` AND t.created_by = $${paramCount}`;
-    params.push(req.user.id);
-    paramCount++;
+  if (search) {
+    const idText = addParam(search.replace(/^#/, ''));
+    const like = addParam(`%${escapeLike(search)}%`);
+    conditions.push(`(
+      CAST(t.id AS TEXT) = ${idText}
+      OR t.description ILIKE ${like}
+      OR t.caller_name ILIKE ${like}
+      OR t.department ILIKE ${like}
+      OR u.name ILIKE ${like}
+      OR c.name ILIKE ${like}
+      OR s.name ILIKE ${like}
+    )`);
   }
 
-  if (sort === 'priority') {
-    sql += ` ORDER BY CASE t.priority
-      WHEN 'HIGH' THEN 1
-      WHEN 'MEDIUM' THEN 2
-      WHEN 'LOW' THEN 3
-      ELSE 4 END`;
-  } else if (sort === 'date_asc') {
-    sql += ' ORDER BY t.created_at ASC';
-  } else {
-    sql += ' ORDER BY t.created_at DESC';
-  }
+  const from = `
+    FROM tickets t
+    LEFT JOIN users u ON t.assignee_id = u.id
+    LEFT JOIN ticket_categories c ON t.category_id = c.id
+    LEFT JOIN ticket_subcategories s ON t.subcategory_id = s.id
+  `;
+  const baseWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const listWhere = `WHERE ${[...conditions, LIST_VIEWS[view]].join(' AND ')}`;
+  const select = `
+    SELECT
+      t.*,
+      u.name as assignee_name,
+      u.username as assignee_username,
+      c.name as category_name,
+      s.name as subcategory_name
+  `;
 
   try {
-    const result = await pool.query(sql, params);
-    res.json(result.rows);
+    if (!paged) {
+      const result = await pool.query(`${select} ${from} ${listWhere} ORDER BY ${LIST_SORTS[sort]}`, params);
+      return res.json(result.rows);
+    }
+
+    const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(req.query.page_size, 10) || DEFAULT_PAGE_SIZE));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+
+    // Counts for every view in one pass, under the same scope and search.
+    const countsResult = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE ${LIST_VIEWS.active}) AS active,
+        COUNT(*) FILTER (WHERE ${LIST_VIEWS.unassigned}) AS unassigned,
+        COUNT(*) FILTER (WHERE ${LIST_VIEWS.resolved}) AS resolved,
+        COUNT(*) AS all
+      ${from}
+      ${baseWhere}
+    `, params);
+    const row = countsResult.rows[0];
+    const counts = {
+      active: Number(row.active),
+      unassigned: Number(row.unassigned),
+      resolved: Number(row.resolved),
+      all: Number(row.all)
+    };
+
+    const total = counts[view];
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const offset = (Math.min(page, totalPages) - 1) * pageSize;
+
+    const listParams = [...params, pageSize, offset];
+    const result = await pool.query(
+      `${select} ${from} ${listWhere} ORDER BY ${LIST_SORTS[sort]} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      listParams
+    );
+
+    res.json({
+      tickets: result.rows,
+      total,
+      page: Math.min(page, totalPages),
+      page_size: pageSize,
+      total_pages: totalPages,
+      counts
+    });
   } catch (err) {
     console.error('List tickets failed:', err);
     res.status(500).json({ message: 'Failed to fetch tickets' });

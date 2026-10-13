@@ -1,231 +1,277 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FiPlus, FiSearch } from 'react-icons/fi';
 import api from '../api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import Avatar from '../components/Avatar';
+import Modal from '../components/Modal';
+
+const EMPTY_FORM = { username: '', name: '', role: 'END_USER', password: '', department: '', phone: '' };
 
 const EndUserList = () => {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [query, setQuery] = useState('');
+
+  const [editing, setEditing] = useState(null); // null = closed, {} = new, user = edit
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  
-  // Form State
-  const [formData, setFormData] = useState({
-    username: '',
-    name: '',
-    role: 'END_USER',
-    password: '',
-    department: '',
-    phone: ''
-  });
+  const [deleting, setDeleting] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
+    setLoadError('');
     try {
       const res = await api.get('/users/end-users');
       setUsers(res.data);
     } catch {
-      toast.error('Failed to load end users');
+      setLoadError("Couldn't load end users. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const sorted = [...users].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!q) return sorted;
+    return sorted.filter((u) => [u.name, u.username, u.department, u.phone].some((v) => v && String(v).toLowerCase().includes(q)));
+  }, [users, query]);
+
+  const isNew = editing && !editing.id;
+  const setField = (key) => (event) => setFormData({ ...formData, [key]: event.target.value });
+
+  const openAdd = () => {
+    setFormData(EMPTY_FORM);
+    setFormError('');
+    setEditing({});
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this end user?')) return;
-    const loadId = toast.loading('Deleting user...');
-    try {
-      await api.delete(`/users/${id}`);
-      toast.success('End user deleted', { id: loadId });
-      fetchUsers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete user', { id: loadId });
-    }
-  };
-
-  const openAddModal = () => {
-    setEditingUser(null);
-    setFormData({ 
-      username: '', 
-      name: '', 
-      role: 'END_USER', 
+  const openEdit = (person) => {
+    setFormData({
+      username: person.username,
+      name: person.name,
+      role: 'END_USER',
       password: '',
-      department: '',
-      phone: ''
+      department: person.department || '',
+      phone: person.phone || ''
     });
-    setShowModal(true);
+    setFormError('');
+    setEditing(person);
   };
 
-  const openEditModal = (user) => {
-    setEditingUser(user);
-    setFormData({ 
-      username: user.username, 
-      name: user.name, 
-      role: user.role, 
-      password: '',
-      department: user.department || '',
-      phone: user.phone || ''
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setSubmitting(true);
-    const loadId = toast.loading(editingUser ? 'Updating end user...' : 'Creating end user...');
+    setFormError('');
     try {
-      if (editingUser) {
-        // Edit Mode
-        const updates = {};
-        if (formData.name !== editingUser.name) updates.name = formData.name;
-        if (formData.password) updates.password = formData.password;
-        if (formData.department !== editingUser.department) updates.department = formData.department;
-        if (formData.phone !== editingUser.phone) updates.phone = formData.phone;
-
-        if (Object.keys(updates).length > 0) {
-          await api.patch(`/users/${editingUser.id}`, updates);
-          toast.success('End user updated', { id: loadId });
-        } else {
-          toast.dismiss(loadId);
-        }
-      } else {
-        // Create Mode
+      if (isNew) {
         await api.post('/users', formData);
-        toast.success('End user created', { id: loadId });
+        toast.success(`${formData.name} added`);
+      } else {
+        const updates = {};
+        if (formData.name !== editing.name) updates.name = formData.name;
+        if (formData.password) updates.password = formData.password;
+        if (formData.department !== (editing.department || '')) updates.department = formData.department;
+        if (formData.phone !== (editing.phone || '')) updates.phone = formData.phone;
+        if (Object.keys(updates).length > 0) {
+          await api.patch(`/users/${editing.id}`, updates);
+          toast.success(`${formData.name} updated`);
+        }
       }
-      setShowModal(false);
+      setEditing(null);
       fetchUsers();
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Operation failed'];
-      messages.forEach(msg => toast.error(msg, { id: loadId }));
+      const messages = err.response?.data?.errors || [err.response?.data?.message || "Couldn't save. Try again."];
+      setFormError(messages.join(' '));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div>Loading end users...</div>;
+  const confirmDelete = async () => {
+    setDeleteBusy(true);
+    try {
+      await api.delete(`/users/${deleting.id}`);
+      toast.success(`${deleting.name} removed`);
+      setDeleting(null);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Couldn't remove this account. Try again.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   return (
     <div>
       <div className="page-header">
-        <h2>End User Management</h2>
-        <button onClick={openAddModal} className="btn">Add New End User</button>
+        <div>
+          <h1 className="page-title">End users</h1>
+          <p className="page-lede">
+            {loading ? 'Loading people…' : `${users.length} people can report problems.`}
+            {' '}People can also register themselves from the sign-in page.
+          </p>
+        </div>
+        <button type="button" onClick={openAdd} className="btn btn-icon">
+          <FiPlus size={16} aria-hidden="true" />
+          Add end user
+        </button>
       </div>
 
-      <div className="card">
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Department</th>
-                <th>Phone</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id}>
-                  <td style={{ fontWeight: '500' }}>{u.name}</td>
-                  <td style={{ color: '#6b778c' }}>{u.username}</td>
-                  <td>{u.department || '-'}</td>
-                  <td>{u.phone || '-'}</td>
-                  <td>
-                    <button
-                      onClick={() => openEditModal(u)}
-                      className="btn-secondary"
-                      style={{ marginRight: '10px', fontSize: '12px', padding: '4px 8px' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      style={{ background: 'none', border: 'none', color: '#DE350B', fontSize: '12px', textDecoration: 'underline' }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="list-tools">
+        <div className="queue-search">
+          <FiSearch size={16} aria-hidden="true" />
+          <label htmlFor="people-search" className="visually-hidden">Search end users</label>
+          <input
+            id="people-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, department, phone…"
+          />
         </div>
       </div>
 
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="card modal-card" style={{ width: 'min(450px, 100%)' }}>
-            <h3 style={{ marginTop: 0 }}>{editingUser ? 'Edit End User' : 'Add New End User'}</h3>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Full Name</label>
-                <input 
-                  type="text" 
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Username (used for login)</label>
-                <input 
-                  type="text" 
-                  value={formData.username}
-                  onChange={e => setFormData({...formData, username: e.target.value})}
-                  required
-                  disabled={!!editingUser}
-                  style={editingUser ? { background: '#f4f5f7', color: '#6b778c' } : {}}
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Department</label>
-                  <input 
-                    type="text" 
-                    value={formData.department}
-                    onChange={e => setFormData({...formData, department: e.target.value})}
-                    placeholder="e.g. Sales"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input 
-                    type="text" 
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                    placeholder="e.g. 555-0123"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>{editingUser ? 'New Password (leave blank to keep)' : 'Password'}</label>
-                <input 
-                  type="password" 
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  required={!editingUser}
-                  placeholder={editingUser ? '********' : ''}
-                />
-              </div>
-
-              <div className="form-row" style={{ marginTop: '20px', justifyContent: 'space-between' }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" disabled={submitting}>Cancel</button>
-                <button type="submit" className="btn" disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Save End User'}
-                </button>
-              </div>
-            </form>
+      <div className="card table-card">
+        {loadError ? (
+          <div className="table-message" role="alert">
+            <p>{loadError}</p>
+            <button type="button" className="btn-secondary" onClick={fetchUsers}>Try again</button>
           </div>
-        </div>
+        ) : !loading && visible.length === 0 ? (
+          <div className="table-message">
+            <p>{query ? `Nobody matches "${query}".` : 'No end users yet.'}</p>
+            {query && <button type="button" className="btn-secondary" onClick={() => setQuery('')}>Clear search</button>}
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="people-table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Phone</th>
+                  <th scope="col" className="cell-actions"><span className="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((person) => (
+                  <tr key={person.id}>
+                    <td>
+                      <div className="person">
+                        <Avatar name={person.name} size={32} />
+                        <div>
+                          <div className="person-name">{person.name}</div>
+                          <div className="person-sub">@{person.username}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Department">{person.department || <span className="muted">Not set</span>}</td>
+                    <td data-label="Phone">
+                      {person.phone
+                        ? <a href={`tel:${person.phone.replace(/\s+/g, '')}`} className="tel-link">{person.phone}</a>
+                        : <span className="muted">Not set</span>}
+                    </td>
+                    <td className="cell-actions">
+                      <button type="button" className="btn-secondary btn-small" onClick={() => openEdit(person)} aria-label={`Edit ${person.name}`}>
+                        Edit
+                      </button>
+                      {isAdmin && (
+                        <button type="button" className="btn-danger btn-small" onClick={() => setDeleting(person)} aria-label={`Remove ${person.name}`}>
+                          Remove
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {editing && (
+        <Modal title={isNew ? 'Add end user' : `Edit ${editing.name}`} onClose={() => setEditing(null)} busy={submitting}>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="eu-name">Full name</label>
+              <input id="eu-name" type="text" value={formData.name} onChange={setField('name')} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="eu-username">Username</label>
+              <input
+                id="eu-username"
+                type="text"
+                value={formData.username}
+                onChange={setField('username')}
+                required
+                disabled={!isNew}
+                aria-describedby={!isNew ? 'eu-username-hint' : undefined}
+              />
+              {!isNew && <p className="field-hint" id="eu-username-hint">Usernames can't be changed.</p>}
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="eu-department">Department</label>
+                <input id="eu-department" type="text" value={formData.department} onChange={setField('department')} required={isNew} placeholder="e.g. Finance" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="eu-phone">Phone <span className="optional-tag">optional</span></label>
+                <input id="eu-phone" type="tel" value={formData.phone} onChange={setField('phone')} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="eu-password">{isNew ? 'Password' : 'New password'}</label>
+              <input
+                id="eu-password"
+                type="password"
+                value={formData.password}
+                onChange={setField('password')}
+                required={isNew}
+                minLength={6}
+                autoComplete="new-password"
+                aria-describedby="eu-password-hint"
+              />
+              <p className="field-hint" id="eu-password-hint">
+                {isNew ? 'At least 6 characters. Share it with them so they can sign in.' : 'To reset their password, type a new one. Leave blank to keep it.'}
+              </p>
+            </div>
+            {formError && <p className="form-error" role="alert">{formError}</p>}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setEditing(null)} className="btn-secondary" disabled={submitting}>Cancel</button>
+              <button type="submit" className="btn" disabled={submitting}>
+                {submitting ? 'Saving…' : isNew ? 'Add end user' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {deleting && (
+        <Modal
+          title={`Remove ${deleting.name}?`}
+          description={`${deleting.name} won't be able to sign in or report problems. Accounts that have reported tickets can't be removed, so the ticket history stays complete.`}
+          onClose={() => setDeleting(null)}
+          busy={deleteBusy}
+          size="sm"
+        >
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={() => setDeleting(null)} disabled={deleteBusy}>Keep account</button>
+            <button type="button" className="btn-danger" onClick={confirmDelete} disabled={deleteBusy}>
+              {deleteBusy ? 'Removing…' : `Remove ${deleting.name}`}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

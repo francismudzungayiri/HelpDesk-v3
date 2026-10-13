@@ -5,7 +5,57 @@ import Avatar from '../components/Avatar';
 import { timeAgo } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { FiArrowLeft, FiLock, FiMessageSquare } from 'react-icons/fi';
+import LabelField from '../components/LabelField';
+import { formatDateTime } from '../utils/formatDate';
 import useTicketEvents from '../hooks/useTicketEvents';
+import RoutingBlock from '../components/RoutingBlock';
+import { Destination, ServiceBand, StatusMark } from '../components/TicketMarks';
+import { statusLabel } from '../utils/labels';
+
+const FEED_RANK = { created: 0, ASSIGNEE_CHANGE: 1, STATUS_CHANGE: 2, reply: 3, note: 4 };
+const isSet = (value) => value !== null && value !== undefined && value !== '' && value !== 'null';
+
+const describeHistory = (item) => {
+  if (item.action === 'STATUS_CHANGE') {
+    return `changed status from ${statusLabel(item.old_value)} to ${statusLabel(item.new_value)}`;
+  }
+  if (item.action === 'ASSIGNEE_CHANGE') {
+    if (!isSet(item.new_value)) {
+      return isSet(item.old_name) ? `unassigned ${item.old_name}` : 'unassigned the ticket';
+    }
+    if (item.new_name && item.new_name === item.user_name) return 'took the ticket';
+    return `assigned the ticket to ${item.new_name || 'a staff member'}`;
+  }
+  return null;
+};
+
+// One chronological feed: replies the requester sees, staff-only notes and history.
+const buildFeed = (ticket, comments, notes, history) => {
+  const feed = [{ key: 'created', kind: 'event', rank: FEED_RANK.created, at: ticket.created_at, actor: ticket.caller_name, text: 'reported this ticket' }];
+
+  history.forEach((item) => {
+    const text = describeHistory(item);
+    if (text) feed.push({ key: `h-${item.id}`, kind: 'event', rank: FEED_RANK[item.action], at: item.created_at, actor: item.user_name, text });
+  });
+  comments.forEach((comment) => {
+    feed.push({
+      key: `c-${comment.id}`,
+      kind: 'reply',
+      rank: FEED_RANK.reply,
+      at: comment.created_at,
+      author: comment.user_name,
+      fromRequester: comment.user_role === 'END_USER',
+      text: comment.comment
+    });
+  });
+  notes.forEach((note) => {
+    feed.push({ key: `n-${note.id}`, kind: 'note', rank: FEED_RANK.note, at: note.created_at, author: note.user_name, text: note.note });
+  });
+
+  const second = (date) => Math.floor(new Date(date).getTime() / 1000);
+  return feed.sort((a, b) => (second(a.at) - second(b.at)) || (a.rank - b.rank));
+};
 
 const TicketDetail = () => {
   const { id } = useParams();
@@ -26,10 +76,10 @@ const TicketDetail = () => {
   const [assigneeId, setAssigneeId] = useState('');
   const [resolutionNote, setResolutionNote] = useState('');
 
-  const [newNote, setNewNote] = useState('');
-  const [addingNote, setAddingNote] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [addingComment, setAddingComment] = useState(false);
+  // Internal note is the default so nothing reaches the requester by accident.
+  const [composeMode, setComposeMode] = useState('note');
+  const [composeText, setComposeText] = useState('');
+  const [composing, setComposing] = useState(false);
   const assignableUsers = users.filter((staffUser) => staffUser.work_status === 'AVAILABLE');
 
   const fetchData = useCallback(async ({ background = false } = {}) => {
@@ -41,9 +91,12 @@ const TicketDetail = () => {
     try {
       const ticketRes = await api.get(`/tickets/${id}`);
       setTicket(ticketRes.data);
-      setStatus(ticketRes.data.status);
-      setAssigneeId(ticketRes.data.assignee_id || '');
-      setResolutionNote(ticketRes.data.resolution_note || '');
+      // A live update must not wipe edits the agent hasn't saved yet.
+      if (!background) {
+        setStatus(ticketRes.data.status);
+        setAssigneeId(ticketRes.data.assignee_id || '');
+        setResolutionNote(ticketRes.data.resolution_note || '');
+      }
     } catch (err) {
       console.error('Error fetching ticket detail:', err);
       if (!background) {
@@ -144,51 +197,39 @@ const TicketDetail = () => {
         assignee_id: assigneeId ? parseInt(assigneeId, 10) : null,
         resolution_note: resolutionNote
       });
-      toast.success('Ticket updated successfully');
+      toast.success(`Ticket #${id} saved`);
       fetchData({ background: false });
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to update ticket'];
+      const messages = err.response?.data?.errors || [err.response?.data?.message || "Couldn't save the ticket. Try again."];
       messages.forEach((msg) => toast.error(msg));
     } finally {
       setUpdating(false);
     }
   };
 
-  const handleAddNote = async (e) => {
+  const handleCompose = async (e) => {
     e.preventDefault();
-    if (isEndUser || !newNote.trim()) return;
+    const text = composeText.trim();
+    if (!text) return;
 
-    setAddingNote(true);
+    const isNote = composeMode === 'note';
+    setComposing(true);
     try {
-      await api.post(`/tickets/${id}/notes`, { note: newNote });
-      toast.success('Note added');
-      setNewNote('');
-      const res = await api.get(`/tickets/${id}/notes`);
-      setNotes(res.data);
+      if (isNote) {
+        await api.post(`/tickets/${id}/notes`, { note: text });
+      } else {
+        await api.post(`/tickets/${id}/comments`, { comment: text });
+      }
+      toast.success(isNote ? 'Internal note added' : `Reply sent to ${ticket?.caller_name || 'the requester'}`);
+      setComposeText('');
+      setComposeMode('note');
+      fetchData({ background: true });
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to add note'];
+      const fallback = isNote ? "Couldn't add the note. Your text is still here; try again." : "Couldn't send the reply. Your text is still here; try again.";
+      const messages = err.response?.data?.errors || [err.response?.data?.message || fallback];
       messages.forEach((msg) => toast.error(msg));
     } finally {
-      setAddingNote(false);
-    }
-  };
-
-  const handleAddComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    setAddingComment(true);
-    try {
-      await api.post(`/tickets/${id}/comments`, { comment: newComment });
-      toast.success('Comment added');
-      setNewComment('');
-      const res = await api.get(`/tickets/${id}/comments`);
-      setComments(res.data);
-    } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Failed to add comment'];
-      messages.forEach((msg) => toast.error(msg));
-    } finally {
-      setAddingComment(false);
+      setComposing(false);
     }
   };
 
@@ -198,245 +239,269 @@ const TicketDetail = () => {
     return String(value);
   };
 
-  if (loading) return <div>Loading details...</div>;
-  if (!ticket) return <div>{loadError || 'Ticket not found'}</div>;
+  const backButton = (
+    <button type="button" onClick={() => navigate('/')} className="btn-secondary btn-icon">
+      <FiArrowLeft size={15} aria-hidden="true" />
+      All tickets
+    </button>
+  );
+
+  if (loading) {
+    return (
+      <div>
+        <div style={{ marginBottom: '20px' }}>{backButton}</div>
+        <div className="card" aria-live="polite">Loading ticket #{id}…</div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div>
+        <div style={{ marginBottom: '20px' }}>{backButton}</div>
+        <div className="card" role="alert">
+          <h2 style={{ marginTop: 0 }}>Couldn't open ticket #{id}</h2>
+          <p style={{ marginBottom: 0 }}>{loadError || 'It may have been removed, or the link is wrong.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const callerFirst = (ticket.caller_name || 'the requester').split(' ')[0];
+  const feed = buildFeed(ticket, comments, notes, history);
+  const savedAssignee = ticket.assignee_id ? String(ticket.assignee_id) : '';
+  const hasUnsavedChanges = status !== ticket.status
+    || String(assigneeId || '') !== savedAssignee
+    || (resolutionNote || '') !== (ticket.resolution_note || '');
+  const currentAssigneeMissing = savedAssignee && !assignableUsers.some((u) => String(u.id) === savedAssignee);
 
   return (
     <div>
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => navigate(isEndUser ? '/portal' : '/')} className="btn-secondary">← Back</button>
+        {backButton}
       </div>
 
-      <div className="content-split">
-        <div style={{ flex: 2 }}>
-          <div className="card" style={{ marginBottom: '20px' }}>
-            <div className="page-header" style={{ marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>Ticket #{ticket.id}</h2>
-              <span className={`badge priority-${ticket.priority}`} style={{ fontSize: '14px', padding: '4px 8px' }}>
-                {ticket.priority} Priority
-              </span>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ color: '#6b778c', marginBottom: '5px' }}>Caller</h4>
-              <div style={{ fontSize: '16px' }}>{ticket.caller_name} ({ticket.department})</div>
-              {ticket.phone && <div style={{ color: '#6b778c' }}>{ticket.phone}</div>}
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ color: '#6b778c', marginBottom: '5px' }}>Issue Description</h4>
-              <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{ticket.description}</p>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ color: '#6b778c', marginBottom: '5px' }}>Classification</h4>
-              <div style={{ fontSize: '15px' }}>
-                {ticket.category_name ? `${ticket.category_name} / ${ticket.subcategory_name || '-'}` : 'Uncategorized'}
-              </div>
-            </div>
-
-            {ticket.custom_fields?.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ color: '#6b778c', marginBottom: '8px' }}>Custom Details</h4>
-                <div style={{ display: 'grid', gap: '8px' }}>
-                  {ticket.custom_fields.map((field) => (
-                    <div key={field.field_definition_id} className="ticket-field-row">
-                      <span style={{ color: '#6b778c' }}>{field.label}</span>
-                      <span style={{ fontWeight: 500 }}>{formatCustomFieldValue(field.value)}</span>
-                    </div>
-                  ))}
+      <div className="ticket-layout">
+          <section className="card ticket-details-card" aria-labelledby="ticket-title">
+            <header className="ticket-label-head">
+              <div className="ticket-label-main">
+                <h1 className="ticket-label-title" id="ticket-title">{String(ticket.description || '').trim().split(/\n+/)[0]}</h1>
+                <p className="ticket-label-meta">
+                  <RoutingBlock ticket={ticket} />
+                  {' · '}Reported by {ticket.caller_name} {timeAgo(ticket.created_at)}
+                </p>
+                <div className="ticket-label-state">
+                  <ServiceBand priority={ticket.priority} />
+                  <StatusMark status={ticket.status} />
+                  <Destination ticket={ticket} />
                 </div>
               </div>
-            )}
+            </header>
 
-            <div style={{ fontSize: '12px', color: '#6b778c', borderTop: '1px solid #dfe1e6', paddingTop: '15px' }}>
-              Created: {new Date(ticket.created_at).toLocaleString()}
-              {ticket.updated_at !== ticket.created_at && <span> • Updated: {new Date(ticket.updated_at).toLocaleString()}</span>}
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: '20px' }}>
-            <h3 style={{ marginTop: 0 }}>Comments</h3>
-
-            <div style={{ marginBottom: '20px' }}>
-              {comments.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No comments yet.</div>}
-              {comments.map((comment) => (
-                <div key={comment.id} style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-                  <Avatar name={comment.user_name} size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{comment.user_name}</span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          color: '#42526e',
-                          background: '#ebecf0',
-                          borderRadius: '12px',
-                          padding: '2px 8px'
-                        }}
-                      >
-                        {comment.user_role}
-                      </span>
-                      <span style={{ color: '#6b778c', fontSize: '12px' }}>{timeAgo(comment.created_at)}</span>
-                    </div>
-                    <div style={{ background: '#f4f5f7', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                      {comment.comment}
-                    </div>
-                  </div>
+            <dl className="label-fields">
+              <div>
+                <dt>Caller</dt>
+                <dd>
+                  {ticket.caller_name}
+                  {ticket.department && <span className="muted"> · {ticket.department}</span>}
+                </dd>
+              </div>
+              <div>
+                <dt>Phone</dt>
+                <dd>{ticket.phone ? <a href={`tel:${ticket.phone.replace(/\s+/g, '')}`} className="tel-link">{ticket.phone}</a> : <span className="muted">Not given</span>}</dd>
+              </div>
+              <div>
+                <dt>Category</dt>
+                <dd>
+                  {ticket.category_name
+                    ? [ticket.category_name, ticket.category_name !== 'Not sure' ? ticket.subcategory_name : null].filter(Boolean).join(' › ')
+                    : <span className="muted">Not categorised</span>}
+                </dd>
+              </div>
+              <div>
+                <dt>Reported</dt>
+                <dd><time dateTime={ticket.created_at}>{formatDateTime(ticket.created_at)}</time></dd>
+              </div>
+              <div>
+                <dt>Last change</dt>
+                <dd><time dateTime={ticket.updated_at || ticket.created_at}>{formatDateTime(ticket.updated_at || ticket.created_at)}</time></dd>
+              </div>
+              {ticket.custom_fields?.map((field) => (
+                <div key={field.field_definition_id}>
+                  <dt>{field.label}</dt>
+                  <dd>{formatCustomFieldValue(field.value)}</dd>
                 </div>
               ))}
+            </dl>
+
+            <div className="ticket-problem">
+              <h2 className="label-caption">What they reported</h2>
+              <p>{ticket.description}</p>
             </div>
+          </section>
 
-            <form onSubmit={handleAddComment} className="form-row">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment for this ticket..."
-                rows="2"
-                style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dfe1e6' }}
-              />
-              <button
-                type="submit"
-                className="btn-secondary"
-                disabled={addingComment || !newComment.trim()}
-                style={{ height: 'fit-content', whiteSpace: 'nowrap' }}
-              >
-                Add Comment
-              </button>
-            </form>
-          </div>
-
-          {!isEndUser && (
-            <div className="card" style={{ marginBottom: '20px' }}>
-              <h3 style={{ marginTop: 0 }}>Internal Notes & Work Log</h3>
-
-              <div style={{ marginBottom: '20px' }}>
-                {notes.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No notes yet.</div>}
-                {notes.map((note) => (
-                  <div key={note.id} style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-                    <Avatar name={note.user_name} size={32} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                        <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{note.user_name}</span>
-                        <span style={{ color: '#6b778c', fontSize: '12px' }}>{timeAgo(note.created_at)}</span>
-                      </div>
-                      <div style={{ background: '#f4f5f7', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                        {note.note}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <form onSubmit={handleAddNote} className="form-row">
-                <textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add an internal note or documentation..."
-                  rows="2"
-                  style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dfe1e6' }}
-                />
-                <button
-                  type="submit"
-                  className="btn-secondary"
-                  disabled={addingNote || !newNote.trim()}
-                  style={{ height: 'fit-content', whiteSpace: 'nowrap' }}
-                >
-                  Add Note
-                </button>
-              </form>
-            </div>
-          )}
-
-          {!isEndUser && (
+          <div className="ticket-side">
             <div className="card">
-              <h3 style={{ marginTop: 0 }}>Ticket Activities</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {history.length === 0 && <div style={{ color: '#6b778c', fontStyle: 'italic' }}>No activities recorded yet.</div>}
-                {history.map((item) => (
-                  <div key={item.id} className="ticket-history-entry">
-                    <div className="ticket-history-time">{timeAgo(item.created_at)}</div>
-                    <div style={{ flex: 1, fontSize: '14px' }}>
-                      <strong>{item.user_name}</strong>
-                      {item.action === 'STATUS_CHANGE' && (
-                        <span> changed status from <span className="badge" style={{ background: '#ebecf0', color: '#42526e' }}>{item.old_value}</span> to <span className="badge" style={{ background: '#e3f2fd', color: '#1976d2' }}>{item.new_value}</span></span>
-                      )}
-                      {item.action === 'ASSIGNEE_CHANGE' && (
-                        <span>
-                          {item.new_value === 'null'
-                            ? ` unassigned the ticket (previously ${item.old_name || 'unassigned'})`
-                            : ` assigned the ticket to ${item.new_name || 'unknown user'}`}
-                        </span>
-                      )}
-                    </div>
+              <h2 className="side-title">Update ticket</h2>
+
+              {!isEndUser && (
+                <>
+                  <div className="label-grid">
+                    <LabelField id="ticket-status" label="Status">
+                      <select id="ticket-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                        <option value="OPEN">Open</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="RESOLVED">Resolved</option>
+                      </select>
+                    </LabelField>
+                    <LabelField id="ticket-assignee" label="Routed to" hint="Only staff whose work status is Available are listed.">
+                      <select id="ticket-assignee" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} aria-describedby="ticket-assignee-hint">
+                        <option value="">Unassigned</option>
+                        {currentAssigneeMissing && (
+                          <option value={savedAssignee}>{ticket.assignee_name} (not available)</option>
+                        )}
+                        {assignableUsers.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
+                    </LabelField>
+                    <LabelField id="ticket-resolution" label="How it was fixed" hint={`${callerFirst} sees this once the ticket is resolved.`}>
+                      <textarea
+                        id="ticket-resolution"
+                        aria-describedby="ticket-resolution-hint"
+                        value={resolutionNote}
+                        onChange={(e) => setResolutionNote(e.target.value)}
+                        rows="4"
+                        placeholder="e.g. Replaced the toner and cleared the rear tray."
+                      />
+                    </LabelField>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>Actions</h3>
+                  <button onClick={handleUpdate} className="btn side-save" disabled={updating || !hasUnsavedChanges}>
+                    {updating ? 'Saving…' : 'Save changes'}
+                  </button>
+                  <p className="field-hint" aria-live="polite" style={{ textAlign: 'center' }}>
+                    {hasUnsavedChanges ? 'You have unsaved changes.' : 'All changes saved.'}
+                  </p>
+                </>
+              )}
 
-            {!isEndUser && (
-              <>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ fontWeight: '500' }}>
-                    <option value="OPEN">Open</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="RESOLVED">Resolved</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Assignee</label>
-                  <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                    <option value="">Unassigned</option>
-                    {assignableUsers.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Final Resolution</label>
-                  <textarea
-                    value={resolutionNote}
-                    onChange={(e) => setResolutionNote(e.target.value)}
-                    rows="4"
-                    placeholder="Details on how it was fixed..."
-                  />
-                </div>
-
-                <button onClick={handleUpdate} className="btn" style={{ width: '100%' }} disabled={updating}>
-                  {updating ? 'Saving...' : 'Save Changes'}
-                </button>
-              </>
-            )}
-
-            {isEndUser && (
-              <div>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#6b778c' }}>Current Status</label>
-                  <div style={{ padding: '10px', background: '#f4f5f7', borderRadius: '4px', fontWeight: '500' }}>
-                    {status.replace('_', ' ')}
-                  </div>
-                </div>
-                {ticket.assignee_name && (
+              {isEndUser && (
+                <div>
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#6b778c' }}>Assigned To</label>
-                    <div style={{ padding: '10px', background: '#f4f5f7', borderRadius: '4px' }}>
-                      {ticket.assignee_name}
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: 'var(--text-secondary)' }}>Current Status</label>
+                    <div style={{ padding: '10px', background: '#f4f5f7', borderRadius: '4px', fontWeight: '500' }}>
+                      {statusLabel(status)}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                  {ticket.assignee_name && (
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: 'var(--text-secondary)' }}>Assigned To</label>
+                      <div style={{ padding: '10px', background: '#f4f5f7', borderRadius: '4px' }}>
+                        {ticket.assignee_name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+
+          <section className="card staff-thread" aria-labelledby="thread-heading">
+            <div className="staff-thread-head">
+              <h3 id="thread-heading">Conversation and activity</h3>
+              <p className="staff-thread-legend">
+                <span className="legend-reply">Replies: {callerFirst} sees these</span>
+                <span className="legend-note"><FiLock size={12} aria-hidden="true" /> Internal notes: IT staff only</span>
+              </p>
+            </div>
+
+            <ol className="staff-feed">
+              {feed.map((item) => {
+                if (item.kind === 'event') {
+                  return (
+                    <li key={item.key} className="feed-event">
+                      <span className="feed-event-dot" aria-hidden="true" />
+                      <span className="feed-event-text">
+                        {item.actor && <strong>{item.actor}</strong>} {item.text}
+                        <time dateTime={item.at} title={new Date(item.at).toLocaleString()}>{timeAgo(item.at)}</time>
+                      </span>
+                    </li>
+                  );
+                }
+
+                const isNote = item.kind === 'note';
+                return (
+                  <li key={item.key} className={`feed-entry ${isNote ? 'feed-note' : 'feed-reply'}`}>
+                    <Avatar name={item.author} size={32} />
+                    <div className="feed-body">
+                      <div className="feed-meta">
+                        <strong>{item.author}</strong>
+                        <span className="feed-kind">
+                          {isNote ? (
+                            <><FiLock size={12} aria-hidden="true" /> Internal note</>
+                          ) : item.fromRequester ? 'Caller' : `Reply · ${callerFirst} can see this`}
+                        </span>
+                        <time dateTime={item.at} title={new Date(item.at).toLocaleString()}>{timeAgo(item.at)}</time>
+                      </div>
+                      <p className="feed-text">{item.text}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <form className={`composer composer-${composeMode}`} onSubmit={handleCompose}>
+              <div className="composer-toggle" role="radiogroup" aria-label="Who should see this message">
+                <label className={composeMode === 'note' ? 'is-selected' : ''}>
+                  <input
+                    type="radio"
+                    name="composeMode"
+                    value="note"
+                    checked={composeMode === 'note'}
+                    onChange={() => setComposeMode('note')}
+                  />
+                  <FiLock size={14} aria-hidden="true" />
+                  Internal note
+                </label>
+                <label className={composeMode === 'reply' ? 'is-selected' : ''}>
+                  <input
+                    type="radio"
+                    name="composeMode"
+                    value="reply"
+                    checked={composeMode === 'reply'}
+                    onChange={() => setComposeMode('reply')}
+                  />
+                  <FiMessageSquare size={14} aria-hidden="true" />
+                  Reply
+                </label>
+              </div>
+              <p className="composer-hint" id="composer-hint">
+                {composeMode === 'note'
+                  ? 'Only IT staff can see this. Use it for findings, steps tried and handover.'
+                  : `${ticket.caller_name || 'The requester'} will see this on their ticket.`}
+              </p>
+              <label htmlFor="composer-text" className="visually-hidden">
+                {composeMode === 'note' ? 'Internal note' : `Reply to ${callerFirst}`}
+              </label>
+              <textarea
+                id="composer-text"
+                value={composeText}
+                onChange={(e) => setComposeText(e.target.value)}
+                rows="3"
+                aria-describedby="composer-hint"
+                placeholder={composeMode === 'note' ? 'What did you find or try?' : `Write to ${callerFirst}…`}
+              />
+              <div className="composer-actions">
+                <button type="submit" className="btn" disabled={composing || !composeText.trim()}>
+                  {composing
+                    ? 'Sending…'
+                    : composeMode === 'note' ? 'Add internal note' : `Send reply to ${callerFirst}`}
+                </button>
+              </div>
+            </form>
+          </section>
+
       </div>
     </div>
   );

@@ -1,164 +1,101 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
+import AuthCard, { LabelField } from '../components/AuthCard';
+import { errorMessage } from '../utils/errors';
+
+const EMPTY = { name: '', department: '', username: '', phone: '', password: '', confirmPassword: '' };
+
+const validate = (form) => {
+  const errors = {};
+  if (form.name.trim().length < 2) errors.name = 'Enter your full name.';
+  if (!form.department.trim()) errors.department = 'Enter your department, e.g. Finance.';
+  if (form.username.trim().length < 3) errors.username = 'Use at least 3 characters.';
+  if (form.password.length < 6) errors.password = 'Use at least 6 characters.';
+  if (!errors.password && form.confirmPassword !== form.password) errors.confirmPassword = "This doesn't match the password above.";
+  return errors;
+};
 
 const Register = () => {
   const navigate = useNavigate();
-  const { setSession } = useAuth();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    confirmPassword: '',
-    name: '',
-    department: '',
-    phone: ''
-  });
-  const [loading, setLoading] = useState(false);
+  const { setSession, user } = useAuth();
+  const [form, setForm] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  if (user) return <Navigate to={user.role === 'END_USER' ? '/portal' : '/'} replace />;
+
+  const setField = (key) => (event) => {
+    setForm({ ...form, [key]: event.target.value });
+    if (errors[key]) setErrors({ ...errors, [key]: undefined });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const describedBy = (id, key, hasHint = false) => (errors[key] ? `${id}-error` : hasHint ? `${id}-hint` : undefined);
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const nextErrors = validate(form);
+    setErrors(nextErrors);
+    setFormError('');
+    const firstKey = Object.keys(nextErrors)[0];
+    if (firstKey) {
+      document.getElementById(`reg-${firstKey}`)?.focus();
       return;
     }
 
-    setLoading(true);
-    const loadId = toast.loading('Creating your account...');
-
+    setSubmitting(true);
     try {
       const response = await api.post('/auth/register', {
-        username: formData.username.trim(),
-        password: formData.password,
-        name: formData.name.trim(),
-        department: formData.department.trim(),
-        phone: formData.phone.trim()
+        username: form.username.trim(),
+        password: form.password,
+        name: form.name.trim(),
+        department: form.department.trim(),
+        phone: form.phone.trim()
       });
-
-      toast.success('Account created! Welcome to HelpDesky.', { id: loadId });
       setSession(response.data.token, response.data.user);
-      navigate('/portal');
+      navigate('/portal', { replace: true });
     } catch (err) {
-      const messages = err.response?.data?.errors || [err.response?.data?.message || 'Registration failed'];
-      messages.forEach(msg => toast.error(msg, { id: loadId }));
-    } finally {
-      setLoading(false);
+      setFormError(errorMessage(err, "Couldn't create your account. Try again."));
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #f1f1f1ff 0%, #ffffffff 100%)'
-    }}>
-      <div className="card" style={{ width: '100%', maxWidth: '450px', margin: '20px' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Create Account</h2>
-        <p style={{ textAlign: 'center', color: '#6b778c', marginBottom: '30px' }}>
-          Register to submit and track support tickets
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Username *</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              minLength={3}
-              placeholder="Choose a username"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Full Name *</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              minLength={2}
-              placeholder="Your full name"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Department *</label>
-            <input
-              type="text"
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              required
-              placeholder="e.g., IT, HR, Finance"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="Your contact number"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Password *</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-              placeholder="At least 6 characters"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Confirm Password *</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              placeholder="Re-enter your password"
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn" 
-            style={{ width: '100%', marginTop: '10px' }}
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : 'Register'}
-          </button>
-        </form>
-
-        <div style={{ textAlign: 'center', marginTop: '20px', color: '#6b778c' }}>
-          Already have an account? <Link to="/login" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '500' }}>Login</Link>
+    <AuthCard
+      wide
+      title="Create your HelpDesky account"
+      lede="So you can report IT problems and follow them. Staff accounts are set up by an IT admin."
+      footer={<p>Already have an account? <Link to="/login">Sign in</Link></p>}
+    >
+      <form className="label-form" onSubmit={handleSubmit} noValidate>
+        <div className="label-grid label-grid-2">
+          <LabelField id="reg-name" label="Full name" error={errors.name}>
+            <input id="reg-name" type="text" value={form.name} onChange={setField('name')} autoComplete="name" autoFocus aria-invalid={errors.name ? true : undefined} aria-describedby={describedBy('reg-name', 'name')} />
+          </LabelField>
+          <LabelField id="reg-department" label="Department" error={errors.department}>
+            <input id="reg-department" type="text" value={form.department} onChange={setField('department')} autoComplete="organization-title" aria-invalid={errors.department ? true : undefined} aria-describedby={describedBy('reg-department', 'department')} />
+          </LabelField>
+          <LabelField id="reg-username" label="Username" error={errors.username} hint="You'll use this to sign in.">
+            <input id="reg-username" type="text" value={form.username} onChange={setField('username')} autoComplete="username" autoCapitalize="none" spellCheck={false} aria-invalid={errors.username ? true : undefined} aria-describedby={describedBy('reg-username', 'username', true)} />
+          </LabelField>
+          <LabelField id="reg-phone" label="Phone (optional)" hint="So IT can call you back.">
+            <input id="reg-phone" type="tel" value={form.phone} onChange={setField('phone')} autoComplete="tel" aria-describedby="reg-phone-hint" />
+          </LabelField>
+          <LabelField id="reg-password" label="Password" error={errors.password} hint="At least 6 characters.">
+            <input id="reg-password" type="password" value={form.password} onChange={setField('password')} autoComplete="new-password" aria-invalid={errors.password ? true : undefined} aria-describedby={describedBy('reg-password', 'password', true)} />
+          </LabelField>
+          <LabelField id="reg-confirmPassword" label="Confirm password" error={errors.confirmPassword}>
+            <input id="reg-confirmPassword" type="password" value={form.confirmPassword} onChange={setField('confirmPassword')} autoComplete="new-password" aria-invalid={errors.confirmPassword ? true : undefined} aria-describedby={describedBy('reg-confirmPassword', 'confirmPassword')} />
+          </LabelField>
         </div>
-      </div>
-    </div>
+        {formError && <p className="label-error" role="alert">{formError}</p>}
+        <button type="submit" className="label-submit" disabled={submitting}>
+          {submitting ? 'Creating your account…' : 'Create account'}
+        </button>
+      </form>
+    </AuthCard>
   );
 };
 

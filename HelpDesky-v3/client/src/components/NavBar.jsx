@@ -1,139 +1,125 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiBarChart2, FiClipboard, FiGrid, FiPlusCircle, FiSettings, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import { FiBarChart2, FiClipboard, FiGrid, FiLogOut, FiPlusCircle, FiSettings, FiUser, FiUserCheck, FiUsers } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { getWorkStatusMeta } from '../utils/profileStatus';
+import { getWorkStatusMeta, PROFILE_STATUS_OPTIONS } from '../utils/profileStatus';
+import { roleLabel } from '../utils/labels';
+import { errorMessage } from '../utils/errors';
+import Avatar from './Avatar';
+import { BrandBlock } from './AuthCard';
 
 const NavBar = () => {
-  const { user, logout, workStatus } = useAuth();
+  const { user, logout, workStatus, updateWorkStatus } = useAuth();
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!user) return null;
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const workStatusMeta = getWorkStatusMeta(workStatus);
 
-  const linkStyle = (path) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '10px 15px',
-    color: location.pathname === path ? '#0052cc' : '#42526e',
-    backgroundColor: location.pathname === path ? '#e6effc' : 'transparent',
-    borderRadius: '3px',
-    marginBottom: '5px',
-    fontWeight: location.pathname === path ? '500' : 'normal',
-    textDecoration: 'none'
-  });
+  // A ticket page belongs to the Tickets section; "Create ticket" has its own link.
+  const isActive = (path) => location.pathname === path
+    || (path === '/' && location.pathname.startsWith('/tickets/') && location.pathname !== '/tickets/new');
 
-  const renderNavLink = (path, label, iconComponent) => {
+  const changeStatus = async (event) => {
+    setStatusSaving(true);
+    try {
+      const saved = await updateWorkStatus(event.target.value);
+      toast.success(`You're now ${getWorkStatusMeta(saved).label.toLowerCase()}`);
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't change your availability. Try again."));
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const navItem = (to, label, iconComponent) => {
     const IconComponent = iconComponent;
     return (
-    <Link to={path} onClick={closeMobileMenu} style={linkStyle(path)}>
-      <IconComponent size={16} aria-hidden="true" />
-      <span>{label}</span>
-    </Link>
+      <Link
+        key={to}
+        to={to}
+        onClick={closeMobileMenu}
+        className={`rail-link${isActive(to) ? ' is-active' : ''}`}
+        aria-current={isActive(to) ? 'page' : undefined}
+      >
+        <IconComponent size={16} aria-hidden="true" />
+        <span>{label}</span>
+      </Link>
     );
   };
 
   return (
-    <nav className={`app-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+    <nav className={`app-sidebar rail${mobileMenuOpen ? ' mobile-open' : ''}`} aria-label="Main">
       <div className="sidebar-brand-row">
-        <Link
-          to={user.role === 'END_USER' ? '/portal' : '/'}
-          onClick={closeMobileMenu}
-          style={{ fontWeight: 'bold', fontSize: '20px', color: '#0052cc', textDecoration: 'none' }}
-        >
-          HelpDesky
+        <Link to="/" onClick={closeMobileMenu} className="rail-brand" aria-label="HelpDesky, go to tickets">
+          <BrandBlock size="sidebar" />
         </Link>
-
         <button
           type="button"
           className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen((previous) => !previous)}
+          onClick={() => setMobileMenuOpen((open) => !open)}
           aria-expanded={mobileMenuOpen}
-          aria-label="Toggle navigation menu"
+          aria-controls="rail-body"
         >
           {mobileMenuOpen ? 'Close' : 'Menu'}
         </button>
       </div>
 
-      <div className="sidebar-body">
-        <div style={{ flex: 1 }}>
-          <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
-            Menu
+      <div className="sidebar-body" id="rail-body">
+        <div className="rail-sections">
+          <div className="rail-section">
+            <p className="rail-caption">Work</p>
+            {navItem('/', 'Tickets', FiClipboard)}
+            {navItem('/tickets/new', 'Create ticket', FiPlusCircle)}
+            {navItem('/admin', 'Dashboard', FiGrid)}
           </div>
-
-          {user.role === 'END_USER' ? (
-            <>
-              {renderNavLink('/portal', 'My Tickets', FiClipboard)}
-              {renderNavLink('/tickets/new', 'Submit Ticket', FiPlusCircle)}
-              {renderNavLink('/profile', 'Profile', FiUserCheck)}
-            </>
-          ) : (
-            <>
-              {renderNavLink('/', 'All Tickets', FiClipboard)}
-              {renderNavLink('/tickets/new', 'Create Ticket', FiPlusCircle)}
-              {renderNavLink('/profile', 'Profile', FiUserCheck)}
-
-              {(user.role === 'ADMIN' || user.role === 'AGENT') && (
-                <div style={{ marginTop: '20px' }}>
-                  <div style={{ marginBottom: '10px', textTransform: 'uppercase', fontSize: '11px', color: '#6b778c', fontWeight: 'bold', padding: '0 10px' }}>
-                    Management
-                  </div>
-                  {renderNavLink('/admin', 'Dashboard', FiGrid)}
-                  {renderNavLink('/users', 'Staff', FiUsers)}
-                  {renderNavLink('/end-users', 'End Users', FiUser)}
-                  {user.role === 'ADMIN' && (
-                    <>
-                      {renderNavLink('/ticket-settings', 'Ticket Settings', FiSettings)}
-                      {renderNavLink('/reports', 'Reports', FiBarChart2)}
-                    </>
-                  )}
-                </div>
-              )}
-            </>
+          <div className="rail-section">
+            <p className="rail-caption">People</p>
+            {navItem('/users', 'Staff', FiUsers)}
+            {navItem('/end-users', 'End users', FiUser)}
+          </div>
+          {user.role === 'ADMIN' && (
+            <div className="rail-section">
+              <p className="rail-caption">Admin</p>
+              {navItem('/ticket-settings', 'Ticket settings', FiSettings)}
+              {navItem('/reports', 'Reports', FiBarChart2)}
+            </div>
           )}
         </div>
 
-        <div style={{ borderTop: '1px solid #dfe1e6', paddingTop: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '0 10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                background: '#0052cc',
-                borderRadius: '50%',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 'bold'
-              }}
-            >
-              {user.name ? user.name.charAt(0) : user.username.charAt(0)}
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontWeight: '500', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.name || user.username}
-              </div>
-              <div style={{ fontSize: '12px', color: '#6b778c' }}>{user.role}</div>
-              <span className={`badge work-status-badge sidebar-work-status ${workStatusMeta.toneClass}`}>
-                {workStatusMeta.label}
-              </span>
-            </div>
-          </div>
+        <div className="rail-user">
+          <Link to="/profile" onClick={closeMobileMenu} className={`rail-person${isActive('/profile') ? ' is-active' : ''}`} aria-current={isActive('/profile') ? 'page' : undefined}>
+            <Avatar name={user.name || user.username} size={32} />
+            <span className="rail-person-text">
+              <span className="rail-person-name">{user.name || user.username}</span>
+              <span className="rail-person-role">{roleLabel(user.role)} · Profile</span>
+            </span>
+            <FiUserCheck size={14} aria-hidden="true" className="rail-person-icon" />
+          </Link>
+          <label className={`rail-status ${workStatusMeta.toneClass}`}>
+            <span className="visually-hidden">Your availability</span>
+            <span className={`status-dot ${workStatusMeta.toneClass}`} aria-hidden="true" />
+            <select value={workStatus} onChange={changeStatus} disabled={statusSaving}>
+              {PROFILE_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
           <button
+            type="button"
+            className="rail-logout"
             onClick={() => {
               logout();
               navigate('/login', { replace: true });
             }}
-            className="btn-secondary"
-            style={{ width: '100%', textAlign: 'center' }}
           >
-            Logout
+            <FiLogOut size={14} aria-hidden="true" />
+            Log out
           </button>
         </div>
       </div>

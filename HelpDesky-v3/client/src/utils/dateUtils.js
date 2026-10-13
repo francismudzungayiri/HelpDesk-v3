@@ -21,5 +21,6 @@ export function timeAgo(date) {
   if (interval > 1) return interval + " minutes ago";
   if (interval === 1) return interval + " minute ago";
 
-  return Math.floor(seconds) + " seconds ago";
+  if (seconds < 45) return "just now";
+  return "1 minute ago";
 }

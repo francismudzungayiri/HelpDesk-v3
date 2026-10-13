@@ -1,0 +1,730 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T19:02:04+00:00",
+  "title": "Design System: HelpDesky",
+  "extensions": {
+    "colorMeta": {
+      "system-blue": {
+        "role": "primary",
+        "displayName": "System Blue",
+        "canonical": "#0071e3",
+        "oklch": "oklch(56.3% 0.193 256)",
+        "tonalRamp": [
+          "#000046",
+          "#001971",
+          "#003d9e",
+          "#0061cd",
+          "#2e87f6",
+          "#5fafff",
+          "#c0d3ec",
+          "#def0ff"
+        ]
+      },
+      "system-blue-hover": {
+        "role": "primary",
+        "displayName": "System Blue Hover",
+        "canonical": "#0064cc",
+        "oklch": "oklch(51.8% 0.179 256)",
+        "tonalRamp": [
+          "#000044",
+          "#001b6e",
+          "#003e9a",
+          "#0062c9",
+          "#3c88ec",
+          "#69afff",
+          "#c0d3ec",
+          "#def0ff"
+        ]
+      },
+      "system-blue-wash": {
+        "role": "primary",
+        "displayName": "System Blue Wash",
+        "canonical": "#e8f2fd",
+        "oklch": "oklch(95.7% 0.018 251)",
+        "tonalRamp": [
+          "#080b0f",
+          "#23272c",
+          "#40464b",
+          "#61676e",
+          "#838a92",
+          "#a7afb8",
+          "#c9d2dc",
+          "#e6f0fb"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1d1d1f",
+        "oklch": "oklch(23.2% 0.004 286)",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#262628",
+          "#454547",
+          "#666668",
+          "#89898b",
+          "#adadb0",
+          "#d1d1d3",
+          "#eeeef1"
+        ]
+      },
+      "secondary-label": {
+        "role": "neutral",
+        "displayName": "Secondary Label",
+        "canonical": "#6e6e73",
+        "oklch": "oklch(54.0% 0.008 286)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#26262a",
+          "#444449",
+          "#65656a",
+          "#88888e",
+          "#adadb3",
+          "#d0d0d6",
+          "#eeeef4"
+        ]
+      },
+      "tertiary-label": {
+        "role": "neutral",
+        "displayName": "Tertiary Label",
+        "canonical": "#86868b",
+        "oklch": "oklch(62.2% 0.007 286)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#26262a",
+          "#444449",
+          "#65656a",
+          "#88888e",
+          "#adadb2",
+          "#d0d0d6",
+          "#eeeef3"
+        ]
+      },
+      "window-grey": {
+        "role": "neutral",
+        "displayName": "Window Grey",
+        "canonical": "#f5f5f7",
+        "oklch": "oklch(97.1% 0.003 286)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#262628",
+          "#454546",
+          "#666667",
+          "#89898b",
+          "#aeaeaf",
+          "#d1d1d3",
+          "#eeeef0"
+        ]
+      },
+      "group-white": {
+        "role": "neutral",
+        "displayName": "Group White",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 90)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#aeaeae",
+          "#d1d1d1",
+          "#eeeeee"
+        ]
+      },
+      "control-border": {
+        "role": "neutral",
+        "displayName": "Control Border",
+        "canonical": "#d2d2d7",
+        "oklch": "oklch(86.5% 0.007 286)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#26262a",
+          "#454449",
+          "#66656a",
+          "#89898d",
+          "#adadb2",
+          "#d0d0d5",
+          "#eeeef3"
+        ]
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Separator",
+        "canonical": "#e5e5ea",
+        "oklch": "oklch(92.3% 0.007 286)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#26262a",
+          "#454449",
+          "#66666a",
+          "#89898d",
+          "#adadb2",
+          "#d0d0d5",
+          "#eeeef3"
+        ]
+      },
+      "control-fill": {
+        "role": "neutral",
+        "displayName": "Control Fill",
+        "canonical": "#e8e8ed",
+        "oklch": "oklch(93.2% 0.007 286)",
+        "tonalRamp": [
+          "#0b0b0e",
+          "#26262a",
+          "#454449",
+          "#66666a",
+          "#89898d",
+          "#adadb2",
+          "#d0d0d5",
+          "#eeeef3"
+        ]
+      },
+      "quiet-fill": {
+        "role": "neutral",
+        "displayName": "Quiet Fill",
+        "canonical": "rgba(118, 118, 128, 0.12)"
+      },
+      "sidebar-glass": {
+        "role": "neutral",
+        "displayName": "Sidebar Glass",
+        "canonical": "rgba(240, 240, 243, 0.82)"
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#3a3a3c",
+        "oklch": "oklch(34.9% 0.003 286)",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#262628",
+          "#454547",
+          "#666668",
+          "#89898b",
+          "#aeaeb0",
+          "#d1d1d3",
+          "#eeeef1"
+        ]
+      },
+      "unassigned-dash": {
+        "role": "neutral",
+        "displayName": "Unassigned Dash",
+        "canonical": "#aeaeb2",
+        "oklch": "oklch(75.2% 0.006 286)",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#262629",
+          "#454548",
+          "#666669",
+          "#89898c",
+          "#adadb1",
+          "#d0d0d5",
+          "#eeeef2"
+        ]
+      },
+      "open-blue": {
+        "role": "semantic",
+        "displayName": "Open Blue",
+        "canonical": "#0062cc",
+        "oklch": "oklch(51.3% 0.182 257)",
+        "tonalRamp": [
+          "#000045",
+          "#001a6f",
+          "#003d9c",
+          "#0061cb",
+          "#3d88ed",
+          "#6aafff",
+          "#c1d3ec",
+          "#def0ff"
+        ]
+      },
+      "open-blue-wash": {
+        "role": "semantic",
+        "displayName": "Open Blue Wash",
+        "canonical": "#e5f0fd",
+        "oklch": "oklch(95.1% 0.021 252)",
+        "tonalRamp": [
+          "#080b10",
+          "#22272d",
+          "#40464d",
+          "#60676f",
+          "#828a93",
+          "#a6afba",
+          "#c8d2de",
+          "#e5f0fd"
+        ]
+      },
+      "progress-purple": {
+        "role": "semantic",
+        "displayName": "Progress Purple",
+        "canonical": "#8944ab",
+        "oklch": "oklch(51.9% 0.166 313)",
+        "tonalRamp": [
+          "#1d0030",
+          "#3d0055",
+          "#61217e",
+          "#8642a8",
+          "#a969cb",
+          "#cd91ee",
+          "#dacae4",
+          "#f8e7ff"
+        ]
+      },
+      "progress-purple-wash": {
+        "role": "semantic",
+        "displayName": "Progress Purple Wash",
+        "canonical": "#f4eafa",
+        "oklch": "oklch(95.0% 0.024 313)",
+        "tonalRamp": [
+          "#0d0a0f",
+          "#29242b",
+          "#48434b",
+          "#6a636d",
+          "#8d8692",
+          "#b3aab8",
+          "#d6cddc",
+          "#f4eafa"
+        ]
+      },
+      "resolved-green": {
+        "role": "semantic",
+        "displayName": "Resolved Green",
+        "canonical": "#1f7a36",
+        "oklch": "oklch(55.8% 0.146 148)",
+        "tonalRamp": [
+          "#001400",
+          "#003400",
+          "#005612",
+          "#137b31",
+          "#449f55",
+          "#72c47d",
+          "#c0d9c2",
+          "#def6e0"
+        ]
+      },
+      "resolved-green-wash": {
+        "role": "semantic",
+        "displayName": "Resolved Green Wash",
+        "canonical": "#e7f6ec",
+        "oklch": "oklch(95.9% 0.021 157)",
+        "tonalRamp": [
+          "#080d09",
+          "#222824",
+          "#3f4742",
+          "#5f6963",
+          "#818c85",
+          "#a5b2a9",
+          "#c7d5cc",
+          "#e4f3e9"
+        ]
+      },
+      "alert-red": {
+        "role": "semantic",
+        "displayName": "Alert Red",
+        "canonical": "#d70015",
+        "oklch": "oklch(55.3% 0.225 27)",
+        "tonalRamp": [
+          "#390000",
+          "#660000",
+          "#950000",
+          "#c50004",
+          "#ef3d38",
+          "#ff7165",
+          "#eac8c3",
+          "#ffe5e0"
+        ]
+      },
+      "alert-red-wash": {
+        "role": "semantic",
+        "displayName": "Alert Red Wash",
+        "canonical": "#ffebea",
+        "oklch": "oklch(95.6% 0.022 21)",
+        "tonalRamp": [
+          "#100909",
+          "#2c2424",
+          "#4d4242",
+          "#6f6362",
+          "#948584",
+          "#baa9a9",
+          "#decccb",
+          "#fde9e8"
+        ]
+      },
+      "caution-orange": {
+        "role": "semantic",
+        "displayName": "Caution Orange",
+        "canonical": "#c93400",
+        "oklch": "oklch(55.2% 0.192 35)",
+        "tonalRamp": [
+          "#330000",
+          "#5e0000",
+          "#8a0000",
+          "#b92700",
+          "#e15430",
+          "#ff815f",
+          "#eac8bf",
+          "#ffe6dd"
+        ]
+      },
+      "caution-orange-wash": {
+        "role": "semantic",
+        "displayName": "Caution Orange Wash",
+        "canonical": "#fff1e3",
+        "oklch": "oklch(96.5% 0.024 68)",
+        "tonalRamp": [
+          "#0f0a06",
+          "#2b251f",
+          "#4b443c",
+          "#6d645c",
+          "#91877d",
+          "#b7aca0",
+          "#dbcfc2",
+          "#faecde"
+        ]
+      },
+      "note-yellow-wash": {
+        "role": "semantic",
+        "displayName": "Internal Note Yellow Wash",
+        "canonical": "#fff9db",
+        "oklch": "oklch(97.9% 0.040 98)",
+        "tonalRamp": [
+          "#0d0b03",
+          "#29271a",
+          "#494536",
+          "#6a6654",
+          "#8e8a74",
+          "#b3af96",
+          "#d7d2b7",
+          "#f5efd2"
+        ]
+      },
+      "note-yellow-rule": {
+        "role": "semantic",
+        "displayName": "Internal Note Yellow Rule",
+        "canonical": "#f2d978",
+        "oklch": "oklch(88.6% 0.121 95)",
+        "tonalRamp": [
+          "#140900",
+          "#322500",
+          "#534400",
+          "#77651a",
+          "#9c8839",
+          "#c4ad56",
+          "#d9d1b4",
+          "#f6efd1"
+        ]
+      },
+      "note-yellow-ink": {
+        "role": "semantic",
+        "displayName": "Internal Note Yellow Ink",
+        "canonical": "#6e5300",
+        "oklch": "oklch(45.8% 0.094 87)",
+        "tonalRamp": [
+          "#180600",
+          "#382200",
+          "#5a4100",
+          "#7d621e",
+          "#9f864b",
+          "#c3ab75",
+          "#dcd0b4",
+          "#faedd1"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "large-title": {
+        "displayName": "Large Title",
+        "purpose": "Staff page titles; 26px below 760px."
+      },
+      "portal-title": {
+        "displayName": "Portal Title",
+        "purpose": "End-user greeting and page titles."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Dashboard numbers."
+      },
+      "auth-title": {
+        "displayName": "Auth Title",
+        "purpose": "Sign-in and register panel title."
+      },
+      "ticket-title": {
+        "displayName": "Ticket Title",
+        "purpose": "Staff ticket title."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "Card and side-panel headings."
+      },
+      "field-value": {
+        "displayName": "Field Value",
+        "purpose": "Values typed into grouped fields; ticket problem text."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Table content, ledes, buttons at 500."
+      },
+      "row-title": {
+        "displayName": "Row Title",
+        "purpose": "Queue row titles."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Segments, pop-ups, status labels."
+      },
+      "ticket-id": {
+        "displayName": "Ticket Id",
+        "purpose": "#number in tabular figures."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Table headers, field captions, priority capsules."
+      }
+    },
+    "shadows": [
+      {
+        "name": "group-hairline",
+        "value": "0 0 0 1px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)",
+        "purpose": "Every card, table group, portal board and ticket section; replaces the border."
+      },
+      {
+        "name": "raised-segment",
+        "value": "0 1px 2px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06)",
+        "purpose": "Selected segment of a segmented control."
+      },
+      {
+        "name": "auth-panel",
+        "value": "0 0 0 1px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.08)",
+        "purpose": "Sign-in and register panel."
+      },
+      {
+        "name": "sheet",
+        "value": "0 0 0 0.5px rgba(0,0,0,0.08), 0 24px 60px rgba(0,0,0,0.28)",
+        "purpose": "Dialogs, over a rgba(0,0,0,0.28) scrim with 2px blur."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 4px rgba(0,113,227,0.22)",
+        "purpose": "Focused inputs and grouped-field boxes, with a System Blue border."
+      }
+    ],
+    "focus": {
+      "outline": "3px solid rgba(0,113,227,0.55)",
+      "offset": "2px",
+      "purpose": "Keyboard focus on buttons, links and controls inside the macOS scopes."
+    },
+    "materials": [
+      {
+        "name": "sidebar-glass",
+        "value": "background: rgba(240,240,243,0.82); backdrop-filter: saturate(180%) blur(20px)",
+        "purpose": "Staff sidebar."
+      },
+      {
+        "name": "portal-bar-glass",
+        "value": "background: rgba(255,255,255,0.78); backdrop-filter: saturate(180%) blur(20px)",
+        "purpose": "Portal top bar."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-colour",
+        "value": "120ms ease-out",
+        "purpose": "Button background changes."
+      },
+      {
+        "name": "segment-select",
+        "value": "150ms ease-out",
+        "purpose": "Segment background and raise."
+      },
+      {
+        "name": "sheet-in",
+        "value": "260ms cubic-bezier(0.2, 0.9, 0.3, 1.1)",
+        "purpose": "Sheet entrance: rise 8px from scale 0.98."
+      },
+      {
+        "name": "portal-change",
+        "value": "1600ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "One-time wash flash on a changed portal row; confirmation band enters over 420ms on the same curve."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "staff-narrow",
+        "value": "1080px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "portal-mobile",
+        "value": "640px"
+      }
+    ],
+    "brandAssets": [
+      {
+        "name": "logo",
+        "path": "client/public/helpdesky-logo.png",
+        "purpose": "Brand mark: 30px in sidebar, 28px in portal bar, 76px on the auth panel."
+      },
+      {
+        "name": "favicon",
+        "path": "client/public/favicon-32.png",
+        "purpose": "Browser tab icon."
+      },
+      {
+        "name": "apple-touch-icon",
+        "path": "client/public/apple-touch-icon.png",
+        "purpose": "Home-screen icon."
+      }
+    ],
+    "scope": "Tokens are scoped to .app-shell, .auth-screen and .portal-shell; legacy :root values apply outside them."
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "System Blue action; 8px corners, 32px tall.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn\">Create ticket</button><button class=\"ds-btn\" disabled>Save changes</button></div>",
+      "css": ".ds-row{display:flex;gap:10px;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-btn{min-height:32px;padding:6px 14px;border:none;border-radius:8px;background:#0071e3;color:#fff;font:500 14px/1.2 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;letter-spacing:-0.005em;cursor:pointer;transition:background-color 120ms ease-out} .ds-btn:hover{background:#0064cc} .ds-btn:focus-visible{outline:3px solid rgba(0,113,227,0.55);outline-offset:2px} .ds-btn:disabled{background:#e8e8ed;color:#6e6e73;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary and Danger Buttons",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Control Fill buttons; danger keeps the fill and turns its label red.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn-2\">Previous</button><button class=\"ds-btn-danger\">Delete</button></div>",
+      "css": ".ds-row{display:flex;gap:10px} .ds-btn-2,.ds-btn-danger{min-height:32px;padding:6px 14px;border:none;border-radius:8px;background:#e8e8ed;color:#1d1d1f;font:500 14px/1.2 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;cursor:pointer;transition:background-color 120ms ease-out} .ds-btn-2:hover{background:#dedee3} .ds-btn-danger{color:#d70015} .ds-btn-danger:hover{background:#ffebea} .ds-btn-2:focus-visible,.ds-btn-danger:focus-visible{outline:3px solid rgba(0,113,227,0.55);outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-track",
+      "description": "Queue views on a Control Fill track; the selected segment is raised white.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button class=\"ds-seg-b is-on\">Active <span>13</span></button><button class=\"ds-seg-b\">Unassigned <span>6</span></button><button class=\"ds-seg-b\">Resolved <span>5</span></button></div>",
+      "css": ".ds-seg{display:inline-flex;padding:2px;border-radius:8px;background:#e8e8ed;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-seg-b{min-height:28px;padding:0 12px;border:none;border-radius:6px;background:transparent;color:#1d1d1f;font:500 13px/1 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;cursor:pointer;transition:background-color 150ms ease-out,box-shadow 150ms ease-out} .ds-seg-b span{color:#6e6e73;margin-left:4px} .ds-seg-b:hover:not(.is-on){background:rgba(0,0,0,0.04)} .ds-seg-b.is-on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.14),0 0 0 0.5px rgba(0,0,0,0.06)} .ds-seg-b.is-on span{color:#0071e3;font-weight:600} .ds-seg-b:focus-visible{outline:3px solid rgba(0,113,227,0.55);outline-offset:2px}"
+    },
+    {
+      "name": "Grouped Fields",
+      "kind": "input",
+      "refersTo": "grouped-fields",
+      "description": "Inset grouped fields: captions inside cells, 1px gap dividers, the whole group rings on focus.",
+      "html": "<div class=\"ds-group\"><div class=\"ds-cell\"><label for=\"ds-u\">Username</label><input id=\"ds-u\" value=\"rudo\"></div><div class=\"ds-cell\"><label for=\"ds-p\">Password</label><input id=\"ds-p\" type=\"password\" value=\"secret\"></div></div>",
+      "css": ".ds-group{display:grid;gap:1px;width:320px;overflow:hidden;border:1px solid #d2d2d7;border-radius:10px;background:#e5e5ea;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-group:focus-within{border-color:#0071e3;box-shadow:0 0 0 4px rgba(0,113,227,0.22)} .ds-cell{padding:8px 14px 9px;background:#fff} .ds-cell:focus-within{background:#f7faff} .ds-cell label{display:block;margin-bottom:1px;font:500 12px/1.3 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;color:#6e6e73} .ds-cell input{width:100%;min-height:28px;padding:2px 0;border:none;outline:none;background:transparent;color:#1d1d1f;font:400 15px/1.3 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif}"
+    },
+    {
+      "name": "Search and Sort Pop-up",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Quiet Fill search field and macOS pop-up button with an up/down chevron.",
+      "html": "<div class=\"ds-row\"><input class=\"ds-search\" placeholder=\"Search number, caller, text…\"><select class=\"ds-pop\"><option>Recently updated</option><option>Oldest first</option></select></div>",
+      "css": ".ds-row{display:flex;gap:10px} .ds-search,.ds-pop{height:36px;border:none;border-radius:8px;background-color:rgba(118,118,128,0.12);color:#1d1d1f;font:500 13.5px/1 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-search{width:240px;padding:0 12px;font-weight:400} .ds-search::placeholder{color:#5f5f64} .ds-pop{-webkit-appearance:none;appearance:none;padding:0 30px 0 12px;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5 7 4.5M1 7.5 4 10.5 7 7.5' fill='none' stroke='%236e6e73' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center;background-size:8px 12px} .ds-search:focus,.ds-pop:focus{outline:none;background-color:#fff;box-shadow:0 0 0 4px rgba(0,113,227,0.22)}"
+    },
+    {
+      "name": "Sidebar Source List",
+      "kind": "nav",
+      "refersTo": "sidebar-row",
+      "description": "Translucent sidebar with captioned sections; the selected row is solid System Blue.",
+      "html": "<nav class=\"ds-side\"><p class=\"ds-cap\">Work</p><a class=\"ds-link is-on\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><rect x=\"8\" y=\"2\" width=\"8\" height=\"4\" rx=\"1\"/></svg>Tickets</a><a class=\"ds-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/></svg>Dashboard</a></nav>",
+      "css": ".ds-side{width:220px;padding:16px 10px;background:rgba(240,240,243,0.82);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-right:1px solid rgba(0,0,0,0.08);font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-cap{margin:0 0 4px;padding:0 10px;font:600 11px/1.3 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;color:#6e6e73} .ds-link{display:flex;align-items:center;gap:9px;min-height:30px;margin-bottom:1px;padding:0 10px;border-radius:6px;color:#1d1d1f;font-size:14px;text-decoration:none} .ds-link svg{color:#0071e3} .ds-link:hover{background:rgba(0,0,0,0.05)} .ds-link.is-on{background:#0071e3;color:#fff;font-weight:500} .ds-link.is-on svg{color:#fff} .ds-link:focus-visible{outline:3px solid rgba(0,113,227,0.55);outline-offset:2px}"
+    },
+    {
+      "name": "Ticket Marks",
+      "kind": "chip",
+      "refersTo": "priority-high",
+      "description": "Priority capsules, the dot-and-label status, and the dashed Unassigned capsule.",
+      "html": "<div class=\"ds-marks\"><span class=\"ds-tag ds-pr ds-high\">High</span><span class=\"ds-tag ds-pr ds-med\">Medium</span><span class=\"ds-tag ds-pr ds-low\">Low</span><span class=\"ds-tag ds-st ds-open\">Open</span><span class=\"ds-tag ds-st ds-prog\">In progress</span><span class=\"ds-tag ds-un\">Unassigned</span><span class=\"ds-id\">#18</span></div>",
+      "css": ".ds-marks{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif} .ds-tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:600 12px/1.3 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;white-space:nowrap} .ds-pr::before,.ds-st::before{content:\"\";width:7px;height:7px;border-radius:50%;background:currentColor} .ds-high{background:#ffebea;color:#d70015} .ds-med{background:#fff1e3;color:#c93400} .ds-low{background:#e7f6ec;color:#1f7a36} .ds-st{padding:0;color:#1d1d1f;font-weight:500;font-size:13px} .ds-open::before{background:#0062cc} .ds-prog::before{background:#8944ab} .ds-un{border:1px dashed #aeaeb2;color:#6e6e73;font-weight:500} .ds-id{color:#6e6e73;font:500 13px/1 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Card Group",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White 12px group with the hairline-plus-whisper shadow, separators inside.",
+      "html": "<section class=\"ds-card\"><h3>Update ticket</h3><div class=\"ds-line\"><span>Status</span><span>In progress</span></div><div class=\"ds-line\"><span>Routed to</span><span>Tawanda Kurk</span></div></section>",
+      "css": ".ds-card{width:320px;padding:24px;border-radius:12px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.06);font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;color:#1d1d1f} .ds-card h3{margin:0 0 12px;font:600 17px/1.25 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;letter-spacing:-0.01em} .ds-line{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #e5e5ea;font-size:14px} .ds-line span:first-child{color:#6e6e73}"
+    },
+    {
+      "name": "Brand Mark",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "The owner-supplied HelpDesky logo image (headset around a chat bubble) beside the name; never on a tile. Rendered here with the shipped asset path.",
+      "html": "<span class=\"ds-mark\"><img src=\"/helpdesky-logo.png\" alt=\"\" width=\"30\" height=\"30\"><span>HelpDesky</span></span>",
+      "css": ".ds-mark{display:inline-flex;align-items:center;gap:9px;color:#1d1d1f;font:600 15px/1 -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", sans-serif;letter-spacing:-0.01em} .ds-mark img{display:block;width:30px;height:30px;object-fit:contain}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Native Mac App in the Browser",
+    "overview": "**Creative North Star: \"A Native Mac App in the Browser\"**\n\nHelpDesky should feel like it shipped alongside macOS Mail, Reminders and System Settings. The window is a calm grey ground. A translucent source-list sidebar sits on the left. Work happens in white inset groups with hairline shadows, and every action is system blue. The commitment is to convention, carried out with care: nothing invents a bespoke look, so colleagues already know how everything works the first time they see it.\n\nThe same tokens serve three registers. Sign-in and registration are a single centred panel in the style of an Apple ID screen. The staff side is a source-list app: large titles, segmented controls, a rounded search field, and a white table group that reads like a Mail message list. The end-user portal swaps the sidebar for a translucent top bar over one centred column, and tells each person where their ticket stands in plain words inside a coloured capsule. Status and priority use Apple's system colours. Shape and placement say what a mark is (a capsule for priority, a dot and a label for status), and colour confirms it.",
+    "keyCharacteristics": [
+      "System font only (San Francisco on Apple devices, Segoe UI Variable on Windows). Hierarchy comes from weight, size and tight negative tracking.",
+      "Window Grey ground, white groups on 12px corners with a hairline-plus-whisper shadow, and Separator lines inside them.",
+      "One action colour (System Blue) for buttons, links, the selected sidebar row and focus.",
+      "Segmented controls on a Control Fill track with a white raised segment, never tabs or underlines.",
+      "Capsule priority tags, dot-plus-label statuses, avatar-plus-name assignees and a dashed \"Unassigned\" capsule.",
+      "Glass is only for chrome: the staff sidebar and the portal top bar blur what scrolls beneath them (saturate 180%, blur 20px)."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "System Blue is the only interactive colour. Status, priority and availability hues describe state; they are never buttons or links.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shape-Carries-Meaning Rule",
+        "body": "Priority is always a tinted capsule (wash background, ink text, 7px leading dot). Staff status is always a 7px ink dot followed by an Ink label, with no fill. Assignment is an avatar and first name, or a dashed \"Unassigned\" capsule. On the staff side, a status never becomes a filled capsule and a priority never becomes a bare dot. On the portal, the status phrase is the one exception: it is a capsule in the status wash, because there it is the headline.",
+        "section": "colors"
+      },
+      {
+        "name": "The Same-Hue-Everywhere Rule",
+        "body": "A status or priority uses the same ink in a dot, a capsule, a portal phrase, a timeline dot and a Reports chart bar. Charts that do not show status (category, volume over time) use Graphite, never System Blue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sentence-Case Rule",
+        "body": "No uppercase labels or tracked-out captions. Headers, captions, badges and buttons are sentence case at 0 tracking, the way macOS sets them.",
+        "section": "typography"
+      },
+      {
+        "name": "The Say-It-In-Words Rule",
+        "body": "End users never see a raw status enum. Their status phrases come from one vocabulary (`client/src/utils/ticketStatus.js`): \"Waiting for IT\", \"With {first name}\", \"{first name} is working on it\" or \"Being worked on\", and \"Fixed\". Staff see the short labels Open, In progress and Resolved.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glass-Is-Chrome Rule",
+        "body": "Backdrop blur (saturate 180%, blur 20px) belongs only to persistent chrome: the staff sidebar and the portal top bar. Content groups are opaque white.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** wrap every new screen in `.app-shell`, `.auth-screen` or `.portal-shell` so it picks up the scoped macOS tokens. Outside those wrappers, the legacy `:root` values apply.",
+      "**Do** use System Blue (#0071e3) for actions, links, the selected row and focus, and nothing else.",
+      "**Do** put content in white 12px groups with the hairline shadow on Window Grey (#f5f5f7), with Separator (#e5e5ea) lines inside.",
+      "**Do** use a segmented control on a Control Fill (#e8e8ed) track for any switch between two to five views.",
+      "**Do** collect related inputs in a grouped-field box with sentence-case captions inside each cell.",
+      "**Do** show priority as a tinted capsule, staff status as a dot and label, and assignment as an avatar and name or the dashed Unassigned capsule.",
+      "**Do** keep segmented controls on one row on mobile, within the page margins, scrolling sideways if they overflow.",
+      "**Do** pair every animation with a `prefers-reduced-motion` override.",
+      "**Do** use the supplied logo image for the brand mark wherever HelpDesky identifies itself."
+    ],
+    "donts": [
+      "**Don't** set labels, headers or captions in uppercase or with letter-spacing.",
+      "**Don't** fill a staff status as a capsule, or use status and priority hues for buttons or links.",
+      "**Don't** add borders to cards. The hairline shadow is the edge.",
+      "**Don't** use backdrop blur on content groups. Glass is for the sidebar and the portal bar.",
+      "**Don't** fade a disabled primary button to pale blue. Use Control Fill with Secondary Label text.",
+      "**Don't** show end users raw status enums.",
+      "**Don't** add a bespoke brand typeface or accent colour. The system font and the system palette are the identity."
+    ],
+    "knownGaps": [
+      "Admin **Ticket Settings** (`TicketMetaAdmin.jsx`) and **Reports** (`Reports.jsx`) inherit the tokens through the generic card, form-group, button and table rules, with no bespoke macOS treatment. Reports still uses `--bar-track`, which exists only in legacy `:root` (#ebecf0), and its PDF export hard-codes the old navy and grey print styles.",
+      "**Avatars** are pastel circles that still use the six legacy wash/ink pairs hard-coded in `Avatar.jsx` (for example #deebff / #0747a6), not the macOS status palette.",
+      "**Legacy `:root` tokens** (#0052cc primary, #172b4d text, #f4f5f7 ground and the old status inks) remain under the scoped overrides, and so do base rules with 3px and 6px corners and uppercase captions that the macOS section overrides. They are not the system.",
+      "**Portal tone rules** (`--tone-rule` #b3d4ff, #c0b6f2, #abf5d1) and the confirmation band's #b3d4ff border are legacy hues that the macOS section has not retuned. They still draw the status band's divider.",
+      "**Orphaned app-icon CSS:** the `.app-icon` and `.app-icon-large` gradient-tile rules in the macOS section no longer have any markup that uses them, because the logo image replaced them.",
+      "**Tertiary Label** (#86868b) on the sidebar glass is roughly 3.2:1, which is below 4.5:1 for the 11px section captions.",
+      "**Resolved Green** (#1f7a36) on its wash is about 3.9:1. That is below 4.5:1 for the 12px Low priority capsule and the 18px/600 portal \"Fixed\" capsule."
+    ]
+  }
+}
