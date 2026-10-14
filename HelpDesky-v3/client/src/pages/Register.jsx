@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { FiAtSign, FiBriefcase, FiLock, FiPhone, FiUser } from 'react-icons/fi';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import AuthCard, { LabelField } from '../components/AuthCard';
+import AuthCard, { AuthField } from '../components/AuthCard';
 import { errorMessage } from '../utils/errors';
 
 const EMPTY = { name: '', department: '', username: '', phone: '', password: '', confirmPassword: '' };
@@ -32,7 +33,6 @@ const Register = () => {
     if (errors[key]) setErrors({ ...errors, [key]: undefined });
   };
 
-  const describedBy = (id, key, hasHint = false) => (errors[key] ? `${id}-error` : hasHint ? `${id}-hint` : undefined);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -62,33 +62,32 @@ const Register = () => {
     }
   };
 
+  const field = (key, label, icon, extra = {}) => (
+    <AuthField
+      id={`reg-${key}`}
+      label={label}
+      icon={icon}
+      value={form[key]}
+      onChange={setField(key)}
+      error={errors[key]}
+      {...extra}
+    />
+  );
+
   return (
     <AuthCard
-      wide
-      title="Create your HelpDesky account"
+      mode="signup"
+      title="Create your account"
       lede="So you can report IT problems and follow them. Staff accounts are set up by an IT admin."
-      footer={<p>Already have an account? <Link to="/login">Sign in</Link></p>}
     >
-      <form className="label-form" onSubmit={handleSubmit} noValidate>
-        <div className="label-grid label-grid-2">
-          <LabelField id="reg-name" label="Full name" error={errors.name}>
-            <input id="reg-name" type="text" value={form.name} onChange={setField('name')} autoComplete="name" autoFocus aria-invalid={errors.name ? true : undefined} aria-describedby={describedBy('reg-name', 'name')} />
-          </LabelField>
-          <LabelField id="reg-department" label="Department" error={errors.department}>
-            <input id="reg-department" type="text" value={form.department} onChange={setField('department')} autoComplete="organization-title" aria-invalid={errors.department ? true : undefined} aria-describedby={describedBy('reg-department', 'department')} />
-          </LabelField>
-          <LabelField id="reg-username" label="Username" error={errors.username} hint="You'll use this to sign in.">
-            <input id="reg-username" type="text" value={form.username} onChange={setField('username')} autoComplete="username" autoCapitalize="none" spellCheck={false} aria-invalid={errors.username ? true : undefined} aria-describedby={describedBy('reg-username', 'username', true)} />
-          </LabelField>
-          <LabelField id="reg-phone" label="Phone (optional)" hint="So IT can call you back.">
-            <input id="reg-phone" type="tel" value={form.phone} onChange={setField('phone')} autoComplete="tel" aria-describedby="reg-phone-hint" />
-          </LabelField>
-          <LabelField id="reg-password" label="Password" error={errors.password} hint="At least 6 characters.">
-            <input id="reg-password" type="password" value={form.password} onChange={setField('password')} autoComplete="new-password" aria-invalid={errors.password ? true : undefined} aria-describedby={describedBy('reg-password', 'password', true)} />
-          </LabelField>
-          <LabelField id="reg-confirmPassword" label="Confirm password" error={errors.confirmPassword}>
-            <input id="reg-confirmPassword" type="password" value={form.confirmPassword} onChange={setField('confirmPassword')} autoComplete="new-password" aria-invalid={errors.confirmPassword ? true : undefined} aria-describedby={describedBy('reg-confirmPassword', 'confirmPassword')} />
-          </LabelField>
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <div className="auth-grid">
+          {field('name', 'Full name', FiUser, { required: true, autoComplete: 'name', autoFocus: true, placeholder: 'e.g. Rudo Moyo' })}
+          {field('department', 'Department', FiBriefcase, { required: true, autoComplete: 'organization-title', placeholder: 'e.g. Finance' })}
+          {field('username', 'Username', FiAtSign, { required: true, autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, hint: "You'll use this to sign in." })}
+          {field('phone', 'Phone (optional)', FiPhone, { type: 'tel', autoComplete: 'tel', hint: 'So IT can call you back.' })}
+          {field('password', 'Password', FiLock, { type: 'password', required: true, autoComplete: 'new-password', hint: 'At least 6 characters.' })}
+          {field('confirmPassword', 'Confirm password', FiLock, { type: 'password', required: true, autoComplete: 'new-password' })}
         </div>
         {formError && <p className="label-error" role="alert">{formError}</p>}
         <button type="submit" className="label-submit" disabled={submitting}>

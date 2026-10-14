@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { FiLock, FiUser } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import AuthCard, { LabelField } from '../components/AuthCard';
+import AuthCard, { AuthField } from '../components/AuthCard';
 import { errorMessage } from '../utils/errors';
 
 const Login = () => {
@@ -36,41 +37,36 @@ const Login = () => {
 
   return (
     <AuthCard
-      title="Sign in to HelpDesky"
-      lede="Use the username IT gave you, or the one you registered with."
-      footer={(
-        <p>
-          New to HelpDesky? <Link to="/register">Create an account</Link>
-        </p>
-      )}
+      mode="signin"
+      title="Welcome to HelpDesky"
+      lede="Sign in to report a problem or work on tickets. Use the username IT gave you, or the one you registered with."
     >
-      <form className="label-form" onSubmit={handleSubmit} noValidate>
-        <div className="label-grid">
-          <LabelField id="login-username" label="Username">
-            <input
-              id="login-username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              autoCapitalize="none"
-              spellCheck={false}
-              autoFocus
-              aria-describedby={error ? 'login-error' : undefined}
-            />
-          </LabelField>
-          <LabelField id="login-password" label="Password">
-            <input
-              id="login-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              aria-describedby={error ? 'login-error' : undefined}
-            />
-          </LabelField>
-        </div>
-        {error && <p className="label-error" id="login-error" role="alert">{error}</p>}
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <AuthField
+          id="login-username"
+          label="Username"
+          icon={FiUser}
+          required
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Enter your username"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          autoFocus
+        />
+        <AuthField
+          id="login-password"
+          label="Password"
+          icon={FiLock}
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
+          autoComplete="current-password"
+        />
+        {error && <p className="label-error" role="alert">{error}</p>}
         <button type="submit" className="label-submit" disabled={submitting}>
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
