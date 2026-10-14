@@ -181,13 +181,14 @@ const UserList = () => {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="staff-name">Full name</label>
-              <input id="staff-name" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+              <input id="staff-name" type="text" maxLength={120} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
             </div>
             <div className="form-group">
               <label htmlFor="staff-username">Username</label>
               <input
                 id="staff-username"
                 type="text"
+                maxLength={50}
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 required

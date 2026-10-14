@@ -13,7 +13,7 @@ const customFieldInputSchema = z.object({
 });
 
 const ticketBaseCreateSchema = z.object({
-  description: z.string().min(1, 'Description is required'),
+  description: z.string().trim().min(1, 'Description is required').max(5000, 'Keep the description under 5,000 characters'),
   category_id: z.coerce.number().int().positive(),
   subcategory_id: z.coerce.number().int().positive(),
   custom_fields: z.array(customFieldInputSchema).optional().default([])
@@ -21,28 +21,28 @@ const ticketBaseCreateSchema = z.object({
 
 const staffTicketCreateSchema = ticketBaseCreateSchema.extend({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-  caller_name: z.string().min(1, 'Caller name is required'),
-  department: z.string().min(1, 'Department is required'),
-  phone: z.string().optional()
+  caller_name: z.string().trim().min(1, 'Caller name is required').max(120, 'Keep the caller name under 120 characters'),
+  department: z.string().trim().min(1, 'Department is required').max(120, 'Keep the department under 120 characters'),
+  phone: z.string().trim().max(40, 'Keep the phone number under 40 characters').optional()
 });
 
 const endUserTicketCreateSchema = ticketBaseCreateSchema.extend({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().default('MEDIUM'),
-  phone: z.string().optional()
+  phone: z.string().trim().max(40, 'Keep the phone number under 40 characters').optional()
 });
 
 const ticketUpdateSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED']).optional(),
   assignee_id: z.number().nullable().optional(),
-  resolution_note: z.string().optional()
+  resolution_note: z.string().max(5000, 'Keep the resolution under 5,000 characters').optional()
 });
 
 const noteSchema = z.object({
-  note: z.string().min(1, 'Note content is required')
+  note: z.string().trim().min(1, 'Note content is required').max(5000, 'Keep notes under 5,000 characters')
 });
 
 const commentSchema = z.object({
-  comment: z.string().min(1, 'Comment content is required')
+  comment: z.string().trim().min(1, 'Comment content is required').max(5000, 'Keep messages under 5,000 characters')
 });
 
 const badRequest = (message) => {

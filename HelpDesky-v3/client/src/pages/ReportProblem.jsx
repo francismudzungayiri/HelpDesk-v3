@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import api from '../api';
 
+const DESCRIPTION_LIMIT = 5000;
+
 const IMPACT_OPTIONS = [
   { value: 'LOW', label: 'I can still work', hint: "It's annoying, but I can get on with things." },
   { value: 'MEDIUM', label: "It's slowing me down", hint: "I can work around it, but it's costing me time." },
@@ -296,10 +298,14 @@ const ReportProblem = () => {
                 clearError('description');
               }}
               placeholder="For example: The printer on the 2nd floor says 'paper jam', but there's no paper stuck."
+              maxLength={DESCRIPTION_LIMIT}
               aria-invalid={errors.description ? true : undefined}
               aria-describedby={errors.description ? 'report-description-error' : undefined}
               aria-required="true"
             />
+            {description.length > DESCRIPTION_LIMIT - 500 && (
+              <p className="char-count" aria-live="polite">{DESCRIPTION_LIMIT - description.length} characters left</p>
+            )}
             <FieldError id="report-description-error" message={errors.description} />
           </div>
 

@@ -21,10 +21,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && localStorage.getItem('token')) {
+    // A 401 means the session is missing or expired (not a permission problem): sign in again.
+    const isSignIn = String(error.config?.url || '').includes('/auth/login');
+    if (error.response?.status === 401 && !isSignIn && localStorage.getItem('token')) {
       localStorage.removeItem('token');
       if (!['/login', '/register'].includes(window.location.pathname)) {
-        window.location.href = '/login';
+        window.location.href = '/login?session=ended';
       }
     }
     return Promise.reject(error);

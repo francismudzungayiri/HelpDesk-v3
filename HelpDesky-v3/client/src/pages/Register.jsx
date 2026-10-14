@@ -82,10 +82,10 @@ const Register = () => {
     >
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <div className="auth-grid">
-          {field('name', 'Full name', FiUser, { required: true, autoComplete: 'name', autoFocus: true, placeholder: 'e.g. Rudo Moyo' })}
-          {field('department', 'Department', FiBriefcase, { required: true, autoComplete: 'organization-title', placeholder: 'e.g. Finance' })}
-          {field('username', 'Username', FiAtSign, { required: true, autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, hint: "You'll use this to sign in." })}
-          {field('phone', 'Phone (optional)', FiPhone, { type: 'tel', autoComplete: 'tel', hint: 'So IT can call you back.' })}
+          {field('name', 'Full name', FiUser, { required: true, autoComplete: 'name', autoFocus: true, placeholder: 'e.g. Rudo Moyo', maxLength: 120 })}
+          {field('department', 'Department', FiBriefcase, { required: true, autoComplete: 'organization-title', placeholder: 'e.g. Finance', maxLength: 120 })}
+          {field('username', 'Username', FiAtSign, { required: true, autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, maxLength: 50, hint: "You'll use this to sign in." })}
+          {field('phone', 'Phone (optional)', FiPhone, { type: 'tel', autoComplete: 'tel', maxLength: 40, hint: 'So IT can call you back.' })}
           {field('password', 'Password', FiLock, { type: 'password', required: true, autoComplete: 'new-password', hint: 'At least 6 characters.' })}
           {field('confirmPassword', 'Confirm password', FiLock, { type: 'password', required: true, autoComplete: 'new-password' })}
         </div>

@@ -261,6 +261,7 @@ const EndUserTicket = () => {
           <textarea
             id="reply-message"
             rows={3}
+            maxLength={5000}
             value={message}
             onChange={(event) => {
               setMessage(event.target.value);

@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
   try {
     user = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
-    return res.status(403).json({ message: 'Invalid auth token for event stream' });
+    return res.status(401).json({ message: 'Your session has ended. Sign in again.' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream');

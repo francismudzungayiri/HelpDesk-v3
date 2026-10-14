@@ -5025,3 +5025,22 @@ a.board-row:hover .board-title {
 .showcase-copy p {
   text-wrap: pretty;
 }
+
+/* Hardening: session notice, character counter */
+.auth-notice {
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--primary-wash);
+  color: var(--open-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.char-count {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

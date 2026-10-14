@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { FiLock, FiUser } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import AuthCard, { AuthField } from '../components/AuthCard';
@@ -12,6 +12,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const sessionEnded = searchParams.get('session') === 'ended';
 
   if (user) return <Navigate to={user.role === 'END_USER' ? '/portal' : '/'} replace />;
 
@@ -41,6 +43,9 @@ const Login = () => {
       title="Welcome to HelpDesky"
       lede="Sign in to report a problem or work on tickets. Use the username IT gave you, or the one you registered with."
     >
+      {sessionEnded && !error && (
+        <p className="auth-notice" role="status">Your session ended, so you've been signed out. Sign in again to carry on.</p>
+      )}
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <AuthField
           id="login-username"
@@ -53,6 +58,7 @@ const Login = () => {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
+          maxLength={50}
           autoFocus
         />
         <AuthField

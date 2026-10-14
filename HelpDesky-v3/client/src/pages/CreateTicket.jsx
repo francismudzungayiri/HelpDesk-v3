@@ -349,6 +349,7 @@ const CreateTicket = () => {
                   onChange={handleCallerChange}
                   required
                   placeholder="Start typing a name"
+                  maxLength={120}
                   aria-describedby="ct-caller-hint"
                 />
                 <datalist id="ct-people">
@@ -358,10 +359,10 @@ const CreateTicket = () => {
                 </datalist>
               </LabelField>
               <LabelField id="ct-department" label="Department">
-                <input id="ct-department" type="text" name="department" value={formData.department} onChange={handleChange} required placeholder="e.g. Finance" />
+                <input id="ct-department" type="text" name="department" value={formData.department} onChange={handleChange} required maxLength={120} placeholder="e.g. Finance" />
               </LabelField>
               <LabelField id="ct-phone" label="Phone (optional)">
-                <input id="ct-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} />
+                <input id="ct-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} maxLength={40} />
               </LabelField>
             </div>
           </fieldset>
@@ -378,6 +379,7 @@ const CreateTicket = () => {
                   required
                   rows="4"
                   placeholder="In the caller's words, plus anything you've already checked."
+                  maxLength={5000}
                 />
               </LabelField>
               <LabelField id="ct-category" label="Category">

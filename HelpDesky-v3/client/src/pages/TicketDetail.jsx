@@ -372,6 +372,7 @@ const TicketDetail = () => {
                         value={resolutionNote}
                         onChange={(e) => setResolutionNote(e.target.value)}
                         rows="4"
+                        maxLength={5000}
                         placeholder="e.g. Replaced the toner and cleared the rear tray."
                       />
                     </LabelField>
@@ -489,6 +490,7 @@ const TicketDetail = () => {
                 value={composeText}
                 onChange={(e) => setComposeText(e.target.value)}
                 rows="3"
+                maxLength={5000}
                 aria-describedby="composer-hint"
                 placeholder={composeMode === 'note' ? 'What did you find or try?' : `Write to ${callerFirst}…`}
               />

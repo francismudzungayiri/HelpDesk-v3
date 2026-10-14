@@ -15,11 +15,11 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters").max(50),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  name: z.string().min(2, "Name is required"),
-  department: z.string().min(1, "Department is required"),
-  phone: z.string().optional()
+  username: z.string().min(3, "Username must be at least 3 characters").max(50, 'Keep the username under 50 characters'),
+  password: z.string().min(6, "Password must be at least 6 characters").max(200, 'Keep the password under 200 characters'),
+  name: z.string().trim().min(2, "Name is required").max(120, 'Keep the name under 120 characters'),
+  department: z.string().trim().min(1, "Department is required").max(120, 'Keep the department under 120 characters'),
+  phone: z.string().trim().max(40, 'Keep the phone number under 40 characters').optional()
 });
 
 const workStatusSchema = z.object({

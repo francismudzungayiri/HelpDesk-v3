@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
+import Modal from '../components/Modal';
+import { errorMessage } from '../utils/errors';
+
+const FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', date: 'Date', checkbox: 'Checkbox', select: 'Choice list' };
+
+// "Drive Name" -> "drive_name"
+const toFieldKey = (label) => label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 120);
 
 const TicketMetaAdmin = () => {
   const [categories, setCategories] = useState([]);
@@ -45,6 +52,12 @@ const TicketMetaAdmin = () => {
   const [savingSubcategory, setSavingSubcategory] = useState(false);
   const [savingField, setSavingField] = useState(false);
   const [deletingFieldId, setDeletingFieldId] = useState(null);
+  const [confirmField, setConfirmField] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [loadError, setLoadError] = useState('');
+  const [keyTouched, setKeyTouched] = useState(false);
+
+  const setFormError = (form, message) => setFormErrors((prev) => ({ ...prev, [form]: message }));
 
   const selectedCategoryName = useMemo(() => {
     const category = categories.find((item) => String(item.id) === String(subcategoryCategoryId));
@@ -63,7 +76,7 @@ const TicketMetaAdmin = () => {
       }
     } catch (err) {
       console.error('Failed to load categories:', err);
-      toast.error('Failed to load categories');
+      setLoadError(errorMessage(err, "Couldn't load ticket categories. Try again."));
     } finally {
       setCategoriesLoading(false);
     }
@@ -155,7 +168,8 @@ const TicketMetaAdmin = () => {
   const handleCreateCategory = async (event) => {
     event.preventDefault();
     setSavingCategory(true);
-    const toastId = toast.loading('Creating category...');
+    setFormError('category', '');
+    const toastId = toast.loading('Adding category…');
 
     try {
       await api.post('/ticket-meta/categories', {
@@ -164,12 +178,12 @@ const TicketMetaAdmin = () => {
         sort_order: Number(categoryForm.sort_order || 0)
       });
 
-      toast.success('Category created', { id: toastId });
+      toast.success(`${categoryForm.name} added`, { id: toastId });
       setCategoryForm({ name: '', description: '', sort_order: 0 });
       await loadCategories();
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Failed to create category';
-      toast.error(message, { id: toastId });
+      toast.dismiss(toastId);
+      setFormError('category', errorMessage(err, "Couldn't add the category. Try again."));
     } finally {
       setSavingCategory(false);
     }
@@ -179,12 +193,13 @@ const TicketMetaAdmin = () => {
     event.preventDefault();
 
     if (!subcategoryCategoryId) {
-      toast.error('Select a category first');
+      setFormError('subcategory', 'Choose a category first.');
       return;
     }
 
     setSavingSubcategory(true);
-    const toastId = toast.loading('Creating subcategory...');
+    setFormError('subcategory', '');
+    const toastId = toast.loading('Adding subcategory…');
 
     try {
       await api.post('/ticket-meta/subcategories', {
@@ -194,15 +209,15 @@ const TicketMetaAdmin = () => {
         sort_order: Number(subcategoryForm.sort_order || 0)
       });
 
-      toast.success('Subcategory created', { id: toastId });
+      toast.success(`${subcategoryForm.name} added`, { id: toastId });
       setSubcategoryForm({ name: '', description: '', sort_order: 0 });
       await loadSubcategoriesForPanel(subcategoryCategoryId);
       if (String(fieldCategoryId) === String(subcategoryCategoryId)) {
         await loadSubcategoriesForFields(fieldCategoryId);
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Failed to create subcategory';
-      toast.error(message, { id: toastId });
+      toast.dismiss(toastId);
+      setFormError('subcategory', errorMessage(err, "Couldn't add the subcategory. Try again."));
     } finally {
       setSavingSubcategory(false);
     }
@@ -212,17 +227,25 @@ const TicketMetaAdmin = () => {
     event.preventDefault();
 
     if (!fieldCategoryId) {
-      toast.error('Select a category first');
+      setFormError('field', 'Choose a category first.');
       return;
     }
 
     if (fieldForm.field_type === 'select' && !fieldForm.options_text.trim()) {
-      toast.error('Select fields require options');
+      setFormError('field', 'Add at least one option, separated by commas.');
+      document.getElementById('field-options')?.focus();
+      return;
+    }
+
+    if (!/^[a-z0-9_]{2,}$/.test(fieldForm.field_key.trim())) {
+      setFormError('field', 'The field key needs at least 2 lowercase letters, numbers or underscores.');
+      document.getElementById('field-key')?.focus();
       return;
     }
 
     setSavingField(true);
-    const toastId = toast.loading('Creating custom field...');
+    setFormError('field', '');
+    const toastId = toast.loading('Adding field…');
 
     try {
       const options = fieldForm.field_type === 'select'
@@ -241,7 +264,8 @@ const TicketMetaAdmin = () => {
         sort_order: Number(fieldForm.sort_order || 0)
       });
 
-      toast.success('Custom field created', { id: toastId });
+      toast.success(`${fieldForm.label} added`, { id: toastId });
+      setKeyTouched(false);
       setFieldForm((prev) => ({
         ...prev,
         field_key: '',
@@ -253,19 +277,16 @@ const TicketMetaAdmin = () => {
       }));
       await loadFields(fieldCategoryId, fieldViewSubcategoryId);
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Failed to create custom field';
-      toast.error(message, { id: toastId });
+      toast.dismiss(toastId);
+      setFormError('field', errorMessage(err, "Couldn't add the field. Try again."));
     } finally {
       setSavingField(false);
     }
   };
 
   const handleDeleteField = async (field) => {
-    const confirmed = window.confirm(`Delete custom field "${field.label}" (${field.field_key})?`);
-    if (!confirmed) return;
-
     setDeletingFieldId(field.id);
-    const toastId = toast.loading('Deleting custom field...');
+    const toastId = toast.loading('Removing field…');
 
     try {
       try {
@@ -282,40 +303,57 @@ const TicketMetaAdmin = () => {
         await api.post(`/ticket-meta/fields/${field.id}/delete`);
       }
 
-      toast.success('Custom field deleted', { id: toastId });
+      toast.success(`${field.label} removed`, { id: toastId });
+      setConfirmField(null);
       await loadFields(fieldCategoryId, fieldViewSubcategoryId);
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Failed to delete custom field';
-      toast.error(message, { id: toastId });
+      toast.error(errorMessage(err, "Couldn't remove the field. Try again."), { id: toastId });
     } finally {
       setDeletingFieldId(null);
     }
   };
 
   if (categoriesLoading) {
-    return <div>Loading ticket settings...</div>;
+    return <div className="card" aria-live="polite">Loading ticket settings…</div>;
+  }
+
+  if (loadError && categories.length === 0) {
+    return (
+      <div className="card table-message" role="alert">
+        <p>{loadError}</p>
+        <button type="button" className="btn-secondary" onClick={() => { setLoadError(''); setCategoriesLoading(true); loadCategories(); }}>Try again</button>
+      </div>
+    );
   }
 
   return (
     <div>
-      <h2 style={{ marginBottom: '20px' }}>Ticket Taxonomy & Custom Fields</h2>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Ticket settings</h1>
+          <p className="page-lede">Categories, subcategories and the extra questions people answer when they report a problem.</p>
+        </div>
+      </div>
 
       <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 style={{ marginTop: 0 }}>Categories</h3>
+        <h2 className="side-title">Categories</h2>
 
         <form onSubmit={handleCreateCategory} style={{ marginBottom: '20px' }}>
           <div className="form-row">
             <div className="form-group">
-              <label>Name *</label>
+              <label htmlFor="cat-name">Name</label>
               <input
+                id="cat-name"
+                maxLength={100}
                 value={categoryForm.name}
                 onChange={(event) => setCategoryForm((prev) => ({ ...prev, name: event.target.value }))}
                 required
               />
             </div>
             <div className="form-group form-field-compact">
-              <label>Sort Order</label>
+              <label htmlFor="cat-sort">Sort order</label>
               <input
+                id="cat-sort"
                 type="number"
                 value={categoryForm.sort_order}
                 onChange={(event) => setCategoryForm((prev) => ({ ...prev, sort_order: event.target.value }))}
@@ -323,13 +361,16 @@ const TicketMetaAdmin = () => {
             </div>
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label htmlFor="cat-desc">Description <span className="optional-tag">optional</span></label>
             <input
+              id="cat-desc"
+              maxLength={400}
               value={categoryForm.description}
               onChange={(event) => setCategoryForm((prev) => ({ ...prev, description: event.target.value }))}
             />
           </div>
-          <button type="submit" className="btn" disabled={savingCategory}>{savingCategory ? 'Saving...' : 'Add Category'}</button>
+          {formErrors.category && <p className="form-error" role="alert">{formErrors.category}</p>}
+          <button type="submit" className="btn" disabled={savingCategory}>{savingCategory ? 'Adding…' : 'Add category'}</button>
         </form>
 
         <div className="table-responsive">
@@ -355,11 +396,12 @@ const TicketMetaAdmin = () => {
       </div>
 
       <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 style={{ marginTop: 0 }}>Subcategories</h3>
+        <h2 className="side-title">Subcategories</h2>
 
         <div className="form-group" style={{ maxWidth: '320px' }}>
-          <label>Category Scope</label>
+          <label htmlFor="sub-scope">Category</label>
           <select
+            id="sub-scope"
             value={subcategoryCategoryId}
             onChange={(event) => setSubcategoryCategoryId(event.target.value)}
           >
@@ -373,16 +415,19 @@ const TicketMetaAdmin = () => {
         <form onSubmit={handleCreateSubcategory} style={{ marginBottom: '20px' }}>
           <div className="form-row">
             <div className="form-group">
-              <label>Name *</label>
+              <label htmlFor="sub-name">Name</label>
               <input
+                id="sub-name"
+                maxLength={120}
                 value={subcategoryForm.name}
                 onChange={(event) => setSubcategoryForm((prev) => ({ ...prev, name: event.target.value }))}
                 required
               />
             </div>
             <div className="form-group form-field-compact">
-              <label>Sort Order</label>
+              <label htmlFor="sub-sort">Sort order</label>
               <input
+                id="sub-sort"
                 type="number"
                 value={subcategoryForm.sort_order}
                 onChange={(event) => setSubcategoryForm((prev) => ({ ...prev, sort_order: event.target.value }))}
@@ -390,18 +435,21 @@ const TicketMetaAdmin = () => {
             </div>
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label htmlFor="sub-desc">Description <span className="optional-tag">optional</span></label>
             <input
+              id="sub-desc"
+              maxLength={400}
               value={subcategoryForm.description}
               onChange={(event) => setSubcategoryForm((prev) => ({ ...prev, description: event.target.value }))}
             />
           </div>
+          {formErrors.subcategory && <p className="form-error" role="alert">{formErrors.subcategory}</p>}
           <button type="submit" className="btn" disabled={savingSubcategory || !subcategoryCategoryId}>
-            {savingSubcategory ? 'Saving...' : 'Add Subcategory'}
+            {savingSubcategory ? 'Adding…' : 'Add subcategory'}
           </button>
         </form>
 
-        <h4 style={{ marginBottom: '10px' }}>{selectedCategoryName ? `${selectedCategoryName} Subcategories` : 'Subcategories'}</h4>
+        <h4 style={{ marginBottom: '10px' }}>{selectedCategoryName ? `${selectedCategoryName} subcategories` : 'Subcategories'}</h4>
         {loadingSubcategories ? (
           <div>Loading subcategories...</div>
         ) : (
@@ -435,12 +483,12 @@ const TicketMetaAdmin = () => {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Custom Fields</h3>
+        <h2 className="side-title">Extra questions</h2>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Category Scope</label>
-            <select value={fieldCategoryId} onChange={(event) => setFieldCategoryId(event.target.value)}>
+            <label htmlFor="field-scope">Category</label>
+            <select id="field-scope" value={fieldCategoryId} onChange={(event) => setFieldCategoryId(event.target.value)}>
               <option value="">Select category</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
@@ -448,13 +496,14 @@ const TicketMetaAdmin = () => {
             </select>
           </div>
           <div className="form-group">
-            <label>Filter List By Subcategory</label>
+            <label htmlFor="field-filter">Show fields for</label>
             <select
+              id="field-filter"
               value={fieldViewSubcategoryId}
               onChange={(event) => setFieldViewSubcategoryId(event.target.value)}
               disabled={!fieldCategoryId}
             >
-              <option value="">All Scopes</option>
+              <option value="">Every subcategory</option>
               {fieldSubcategories.map((subcategory) => (
                 <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
               ))}
@@ -464,13 +513,14 @@ const TicketMetaAdmin = () => {
 
         <form onSubmit={handleCreateField} style={{ marginBottom: '20px' }}>
           <div className="form-group" style={{ maxWidth: '360px' }}>
-            <label>Apply Field To</label>
+            <label htmlFor="field-applies">New field applies to</label>
             <select
+              id="field-applies"
               value={fieldForm.subcategory_id}
               onChange={(event) => setFieldForm((prev) => ({ ...prev, subcategory_id: event.target.value }))}
               disabled={!fieldCategoryId}
             >
-              <option value="">All Subcategories in Category</option>
+              <option value="">Every subcategory in this category</option>
               {fieldSubcategories.map((subcategory) => (
                 <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
               ))}
@@ -479,29 +529,40 @@ const TicketMetaAdmin = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label>Field Key *</label>
+              <label htmlFor="field-label">Label</label>
               <input
-                value={fieldForm.field_key}
-                onChange={(event) => setFieldForm((prev) => ({ ...prev, field_key: event.target.value }))}
-                placeholder="e.g. asset_tag"
+                id="field-label"
+                maxLength={120}
+                value={fieldForm.label}
+                onChange={(event) => {
+                  const label = event.target.value;
+                  setFieldForm((prev) => ({ ...prev, label, field_key: keyTouched ? prev.field_key : toFieldKey(label) }));
+                }}
+                placeholder="e.g. Asset Tag"
                 required
               />
             </div>
             <div className="form-group">
-              <label>Label *</label>
+              <label htmlFor="field-key">Field key</label>
               <input
-                value={fieldForm.label}
-                onChange={(event) => setFieldForm((prev) => ({ ...prev, label: event.target.value }))}
-                placeholder="e.g. Asset Tag"
+                id="field-key"
+                maxLength={120}
+                pattern="[a-z0-9_]+"
+                aria-describedby="field-key-hint"
+                value={fieldForm.field_key}
+                onChange={(event) => { setKeyTouched(true); setFieldForm((prev) => ({ ...prev, field_key: event.target.value.toLowerCase() })); }}
+                placeholder="e.g. asset_tag"
                 required
               />
+              <p className="field-hint" id="field-key-hint">Filled in from the label. Lowercase letters, numbers and underscores.</p>
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Field Type *</label>
+              <label htmlFor="field-type">Field type</label>
               <select
+                id="field-type"
                 value={fieldForm.field_type}
                 onChange={(event) => setFieldForm((prev) => ({ ...prev, field_type: event.target.value }))}
               >
@@ -509,12 +570,13 @@ const TicketMetaAdmin = () => {
                 <option value="number">Number</option>
                 <option value="date">Date</option>
                 <option value="checkbox">Checkbox</option>
-                <option value="select">Select</option>
+                <option value="select">Choice list</option>
               </select>
             </div>
             <div className="form-group form-field-compact">
-              <label>Sort Order</label>
+              <label htmlFor="field-sort">Sort order</label>
               <input
+                id="field-sort"
                 type="number"
                 value={fieldForm.sort_order}
                 onChange={(event) => setFieldForm((prev) => ({ ...prev, sort_order: event.target.value }))}
@@ -523,8 +585,10 @@ const TicketMetaAdmin = () => {
           </div>
 
           <div className="form-group">
-            <label>Placeholder</label>
+            <label htmlFor="field-placeholder">Placeholder <span className="optional-tag">optional</span></label>
             <input
+              id="field-placeholder"
+              maxLength={255}
               value={fieldForm.placeholder}
               onChange={(event) => setFieldForm((prev) => ({ ...prev, placeholder: event.target.value }))}
             />
@@ -532,33 +596,37 @@ const TicketMetaAdmin = () => {
 
           {fieldForm.field_type === 'select' && (
             <div className="form-group">
-              <label>Select Options (comma-separated) *</label>
+              <label htmlFor="field-options">Options</label>
               <input
+                id="field-options"
+                aria-describedby="field-options-hint"
                 value={fieldForm.options_text}
                 onChange={(event) => setFieldForm((prev) => ({ ...prev, options_text: event.target.value }))}
                 placeholder="Read, Write, Admin"
               />
+              <p className="field-hint" id="field-options-hint">Separate choices with commas.</p>
             </div>
           )}
 
           <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#172b4d' }}>
+            <label className="check-field" htmlFor="field-required">
               <input
+                id="field-required"
                 type="checkbox"
                 checked={fieldForm.required}
                 onChange={(event) => setFieldForm((prev) => ({ ...prev, required: event.target.checked }))}
-                style={{ width: 'auto' }}
               />
-              Required field
+              People must fill this in
             </label>
           </div>
 
+          {formErrors.field && <p className="form-error" role="alert">{formErrors.field}</p>}
           <button type="submit" className="btn" disabled={savingField || !fieldCategoryId}>
-            {savingField ? 'Saving...' : 'Add Custom Field'}
+            {savingField ? 'Adding…' : 'Add field'}
           </button>
         </form>
 
-        <h4 style={{ marginBottom: '10px' }}>Existing Fields</h4>
+        <h3 className="label-caption" style={{ marginBottom: '8px' }}>Current fields</h3>
         {loadingFields ? (
           <div>Loading fields...</div>
         ) : (
@@ -585,7 +653,7 @@ const TicketMetaAdmin = () => {
                     <tr key={field.id}>
                       <td style={{ fontWeight: 500 }}>{field.label}</td>
                       <td>{field.field_key}</td>
-                      <td>{field.field_type}</td>
+                      <td>{FIELD_TYPE_LABELS[field.field_type] || field.field_type}</td>
                       <td>{field.subcategory_name || 'All subcategories'}</td>
                       <td>{field.required ? 'Yes' : 'No'}</td>
                       <td>{field.field_type === 'select' ? (field.options || []).join(', ') || '-' : '-'}</td>
@@ -593,10 +661,11 @@ const TicketMetaAdmin = () => {
                         <button
                           type="button"
                           className="btn-danger"
-                          onClick={() => handleDeleteField(field)}
+                          onClick={() => setConfirmField(field)}
                           disabled={deletingFieldId === field.id}
+                          aria-label={`Remove field ${field.label}`}
                         >
-                          {deletingFieldId === field.id ? 'Deleting...' : 'Delete'}
+                          {deletingFieldId === field.id ? 'Removing…' : 'Remove'}
                         </button>
                       </td>
                     </tr>
@@ -607,6 +676,23 @@ const TicketMetaAdmin = () => {
           </div>
         )}
       </div>
+
+      {confirmField && (
+        <Modal
+          title={`Remove “${confirmField.label}”?`}
+          description="New tickets won't ask for it any more. Answers already given on existing tickets are kept."
+          onClose={() => setConfirmField(null)}
+          busy={deletingFieldId === confirmField.id}
+          size="sm"
+        >
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={() => setConfirmField(null)} disabled={deletingFieldId === confirmField.id}>Keep field</button>
+            <button type="button" className="btn-danger" onClick={() => handleDeleteField(confirmField)} disabled={deletingFieldId === confirmField.id}>
+              {deletingFieldId === confirmField.id ? 'Removing…' : 'Remove field'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

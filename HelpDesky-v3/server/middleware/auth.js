@@ -4,10 +4,12 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  if (!token) return res.sendStatus(401); // Unauthorized
+  if (!token) return res.status(401).json({ message: 'Sign in to continue.' });
 
+  // An expired or invalid token is an authentication failure (401), not a permission one (403),
+  // so the client can send the person back to sign in.
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403); // Forbidden
+    if (err) return res.status(401).json({ message: 'Your session has ended. Sign in again.' });
     req.user = user;
     next();
   });

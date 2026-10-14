@@ -9,21 +9,21 @@ const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.me
 
 // Validation Schemas
 const userCreateSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  username: z.string().trim().min(3, "Username must be at least 3 characters").max(50, 'Keep the username under 50 characters'),
+  password: z.string().min(6, "Password must be at least 6 characters").max(200, 'Keep the password under 200 characters'),
   role: z.enum(['ADMIN', 'AGENT', 'END_USER']),
-  name: z.string().min(2, "Name is required"),
-  department: z.string().optional(),
-  phone: z.string().optional()
+  name: z.string().trim().min(2, "Name is required").max(120, 'Keep the name under 120 characters'),
+  department: z.string().trim().max(120, 'Keep the department under 120 characters').optional(),
+  phone: z.string().trim().max(40, 'Keep the phone number under 40 characters').optional()
 });
 
 const userUpdateSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(120, 'Keep the name under 120 characters').optional(),
   role: z.enum(['ADMIN', 'AGENT', 'END_USER']).optional(),
   work_status: z.enum(['AVAILABLE', 'ON_LEAVE', 'AT_WORKSHOP']).optional(),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
-  department: z.string().optional(),
-  phone: z.string().optional()
+  password: z.string().min(6, "Password must be at least 6 characters").max(200, 'Keep the password under 200 characters').optional(),
+  department: z.string().trim().max(120, 'Keep the department under 120 characters').optional(),
+  phone: z.string().trim().max(40, 'Keep the phone number under 40 characters').optional()
 });
 
 const listUsersByRoleClause = async (res, whereClause, params = []) => {
@@ -74,7 +74,7 @@ const agentForbidden = (res, message) => res.status(403).json({ message });
 // POST /api/users - Create a user (admins: any role; agents: end users only)
 router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
-    const { username, password, role, name } = userCreateSchema.parse(req.body);
+    const { username, password, role, name, department, phone } = userCreateSchema.parse(req.body);
 
     if (req.user.role === 'AGENT' && role !== 'END_USER') {
       return agentForbidden(res, 'Only admins can create staff accounts.');
@@ -89,7 +89,7 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
       "INSERT INTO users (username, password, role, name, department, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, role, work_status, name, department, phone",
-      [username, hash, role, name, req.body.department, req.body.phone]
+      [username, hash, role, name, department, phone]
     );
     
     res.status(201).json(result.rows[0]);
@@ -106,7 +106,7 @@ router.post('/', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (r
 router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, work_status, password } = userUpdateSchema.parse(req.body);
+    const { name, role, work_status, password, department, phone } = userUpdateSchema.parse(req.body);
 
     if (req.user.role === 'AGENT') {
       const target = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
@@ -140,13 +140,13 @@ router.patch('/:id', authenticateToken, authorizeAnyRole('ADMIN', 'AGENT'), asyn
       updates.push(`password = $${idx++}`);
       values.push(hash);
     }
-    if (req.body.department !== undefined) {
+    if (department !== undefined) {
       updates.push(`department = $${idx++}`);
-      values.push(req.body.department);
+      values.push(department);
     }
-    if (req.body.phone !== undefined) {
+    if (phone !== undefined) {
       updates.push(`phone = $${idx++}`);
-      values.push(req.body.phone);
+      values.push(phone);
     }
 
     if (updates.length === 0) return res.status(400).json({ message: 'No fields to update' });

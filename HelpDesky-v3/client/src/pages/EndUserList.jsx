@@ -205,13 +205,14 @@ const EndUserList = () => {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="eu-name">Full name</label>
-              <input id="eu-name" type="text" value={formData.name} onChange={setField('name')} required />
+              <input id="eu-name" type="text" maxLength={120} value={formData.name} onChange={setField('name')} required />
             </div>
             <div className="form-group">
               <label htmlFor="eu-username">Username</label>
               <input
                 id="eu-username"
                 type="text"
+                maxLength={50}
                 value={formData.username}
                 onChange={setField('username')}
                 required
@@ -223,11 +224,11 @@ const EndUserList = () => {
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="eu-department">Department</label>
-                <input id="eu-department" type="text" value={formData.department} onChange={setField('department')} required={isNew} placeholder="e.g. Finance" />
+                <input id="eu-department" type="text" maxLength={120} value={formData.department} onChange={setField('department')} required={isNew} placeholder="e.g. Finance" />
               </div>
               <div className="form-group">
                 <label htmlFor="eu-phone">Phone <span className="optional-tag">optional</span></label>
-                <input id="eu-phone" type="tel" value={formData.phone} onChange={setField('phone')} />
+                <input id="eu-phone" type="tel" maxLength={40} value={formData.phone} onChange={setField('phone')} />
               </div>
             </div>
             <div className="form-group">
