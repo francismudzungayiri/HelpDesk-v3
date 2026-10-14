@@ -1,3 +1,4 @@
+import { FiDownload, FiPrinter } from 'react-icons/fi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import { priorityLabel, statusLabel } from '../utils/labels';
@@ -74,12 +75,17 @@ const buildParams = (filters) => {
 
 const getMax = (items, key = 'count') => Math.max(...items.map((item) => Number(item[key]) || 0), 1);
 
-const formatHours = (hours) => {
-  if (hours === null || hours === undefined) return 'N/A';
-  return `${Number(hours).toFixed(2)} hrs`;
+// 0.09 -> "5 min", 2.62 -> "2.6 h", 5226 -> "218 days"
+const formatDuration = (hours) => {
+  if (hours === null || hours === undefined || Number.isNaN(Number(hours))) return 'No data yet';
+  const h = Number(hours);
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  if (h < 48) return `${h.toFixed(1)} h`;
+  const days = h / 24;
+  return `${days < 10 ? days.toFixed(1) : Math.round(days)} days`;
 };
 
-const formatPct = (value) => `${Number(value || 0).toFixed(2)}%`;
+const formatPct = (value) => `${Number(value || 0).toFixed(1)}%`;
 
 const csvEscape = (value) => {
   const stringValue = value === null || value === undefined ? '' : String(value);
@@ -114,7 +120,6 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('OVERVIEW');
-  const [exportFormat, setExportFormat] = useState('');
 
   const loadReports = useCallback(async (filtersToApply) => {
     setLoading(true);
@@ -191,7 +196,7 @@ const Reports = () => {
     });
 
     ticketsOverTime.forEach((item) => {
-      rows.push(['Tickets Over Time', item.date, item.count]);
+      rows.push(['Tickets over time', item.date, item.count]);
     });
 
     return rows;
@@ -217,17 +222,19 @@ const Reports = () => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Helpdesk Reports</title>
+          <title>HelpDesky report</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; padding: 20px; color: #172B4D; }
-            h1 { margin: 0 0 16px; font-size: 20px; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; padding: 28px; color: #1d1d1f; }
+            h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.02em; }
+            p { margin: 0 0 18px; font-size: 12px; color: #6e6e73; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #dfe1e6; padding: 8px; text-align: left; font-size: 12px; }
-            th { background: #f4f5f7; }
+            th, td { border-bottom: 1px solid #e5e5ea; padding: 7px 8px; text-align: left; font-size: 12px; }
+            th { color: #6e6e73; font-weight: 600; }
           </style>
         </head>
         <body>
-          <h1>Helpdesk Reports</h1>
+          <h1>HelpDesky report</h1>
+          <p>Generated ${htmlEscape(new Date().toLocaleString())}</p>
           <table>
             <thead>
               <tr><th>Section</th><th>Metric</th><th>Value</th></tr>
@@ -259,17 +266,6 @@ const Reports = () => {
     printWindow.addEventListener('load', onLoaded, { once: true });
   };
 
-  const handleExportChange = (event) => {
-    const format = event.target.value;
-    setExportFormat('');
-    if (format === 'CSV') {
-      downloadCSV();
-      return;
-    }
-    if (format === 'PDF') {
-      downloadPDF();
-    }
-  };
 
   const statusDistribution = Array.isArray(data?.status_distribution) ? data.status_distribution : EMPTY_LIST;
   const priorityDistribution = Array.isArray(data?.priority_distribution) ? data.priority_distribution : EMPTY_LIST;
@@ -312,45 +308,44 @@ const Reports = () => {
 
   const trendMax = useMemo(() => getMax(ticketsOverTime), [ticketsOverTime]);
 
-  if (loading && !data) return <div>Loading reports...</div>;
+  if (loading && !data) return <div className="card" aria-live="polite">Loading reports…</div>;
   if (error && !data) {
     return (
-      <div className="card">
-        <h3 style={{ marginBottom: '8px' }}>Error loading reports</h3>
-        <p style={{ marginTop: 0, color: 'var(--text-secondary)' }}>{error}</p>
-        <button type="button" onClick={() => loadReports(filters)} className="btn-secondary">Retry</button>
+      <div className="card table-message" role="alert">
+        <p>{error}</p>
+        <button type="button" onClick={() => loadReports(filters)} className="btn-secondary">Try again</button>
       </div>
     );
   }
 
-  if (!data) return <div>Error loading reports</div>;
+  if (!data) return <div className="card table-message" role="alert"><p>Couldn't load reports.</p></div>;
 
   return (
     <div>
       <div className="page-header">
-        <h2>System Reports</h2>
+        <div>
+          <h1 className="page-title">Reports</h1>
+          <p className="page-lede">Ticket volume, workload and response times for the filters below.</p>
+        </div>
         <div className="page-header-actions">
-          {loading ? <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Refreshing...</span> : null}
-          <select
-            aria-label="Export report"
-            className="btn-secondary"
-            value={exportFormat}
-            onChange={handleExportChange}
-            style={{ minWidth: '150px' }}
-          >
-            <option value="">Export</option>
-            <option value="CSV">Export to CSV</option>
-            <option value="PDF">Export to PDF</option>
-          </select>
+          {loading ? <span className="field-hint" aria-live="polite">Refreshing…</span> : null}
+          <button type="button" className="btn-secondary btn-icon" onClick={downloadCSV}>
+            <FiDownload size={15} aria-hidden="true" />
+            Export CSV
+          </button>
+          <button type="button" className="btn-secondary btn-icon" onClick={downloadPDF}>
+            <FiPrinter size={15} aria-hidden="true" />
+            Print / PDF
+          </button>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
-        <h3 style={{ marginBottom: '16px' }}>Filters</h3>
+        <h2 className="side-title">Filters</h2>
         <form onSubmit={handleApplyFilters}>
           <div className="reports-filter-grid">
             <div className="form-group">
-              <label htmlFor="reports-start-date">Start Date</label>
+              <label htmlFor="reports-start-date">Start date</label>
               <input
                 id="reports-start-date"
                 type="date"
@@ -360,7 +355,7 @@ const Reports = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="reports-end-date">End Date</label>
+              <label htmlFor="reports-end-date">End date</label>
               <input
                 id="reports-end-date"
                 type="date"
@@ -428,13 +423,13 @@ const Reports = () => {
           </div>
 
           <div className="reports-filter-actions">
-            <button type="submit" className="btn">Apply Filters</button>
+            <button type="submit" className="btn">Apply filters</button>
             <button type="button" onClick={handleResetFilters} className="btn-secondary">Reset</button>
           </div>
         </form>
       </div>
 
-      <div className="reports-tabs" role="tablist" aria-label="Report sections">
+      <div className="segmented reports-segmented" role="tablist" aria-label="Report sections">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -442,7 +437,7 @@ const Reports = () => {
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`reports-tab-button ${activeTab === tab.id ? 'active' : ''}`}
+            className={activeTab === tab.id ? 'is-active' : ''}
           >
             {tab.label}
           </button>
@@ -451,24 +446,23 @@ const Reports = () => {
 
       {activeTab === 'OVERVIEW' ? (
         <div>
-          <div className="card-grid cols-3" style={{ marginBottom: '20px' }}>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>Total Tickets</h4>
-              <div style={{ fontSize: '30px', fontWeight: '700' }}>{summary.total_tickets}</div>
-            </div>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>Open</h4>
-              <div style={{ fontSize: '30px', fontWeight: '700', color: 'var(--open-ink)' }}>{summary.open_tickets}</div>
-            </div>
-            <div className="card" style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: '0 0 8px', color: 'var(--text-secondary)' }}>In Progress</h4>
-              <div style={{ fontSize: '30px', fontWeight: '700', color: 'var(--progress-ink)' }}>{summary.in_progress_tickets}</div>
-            </div>
+          <div className="stat-row">
+            {[
+              ['All tickets', summary.total_tickets, null],
+              ['Open', summary.open_tickets, 'OPEN'],
+              ['In progress', summary.in_progress_tickets, 'IN_PROGRESS'],
+              ['Resolved', summary.resolved_tickets, 'RESOLVED']
+            ].map(([label, value, status]) => (
+              <div key={label} className="card stat-tile">
+                <span className={`stat-label${status ? ` tag status-tag status-tag-${status}` : ''}`}>{label}</span>
+                <span className="stat-number">{value}</span>
+              </div>
+            ))}
           </div>
 
           <div className="card-grid cols-2" style={{ marginBottom: '20px' }}>
             <div className="card">
-              <h3>Tickets by Status</h3>
+              <h3>Tickets by status</h3>
               <div style={{ marginTop: '16px' }}>
                 {statusDistribution.length === 0 ? <p>No data for current filters.</p> : null}
                 {statusDistribution.map((item) => (
@@ -493,7 +487,7 @@ const Reports = () => {
             </div>
 
             <div className="card">
-              <h3>Tickets by Priority</h3>
+              <h3>Tickets by priority</h3>
               <div style={{ marginTop: '16px' }}>
                 {priorityDistribution.length === 0 ? <p>No data for current filters.</p> : null}
                 {priorityDistribution.map((item) => (
@@ -519,7 +513,7 @@ const Reports = () => {
           </div>
 
           <div className="card">
-            <h3>Tickets by Category</h3>
+            <h3>Tickets by category</h3>
             <div style={{ marginTop: '16px' }}>
               {categoryDistribution.length === 0 ? <p>No data for current filters.</p> : null}
               {categoryDistribution.map((item) => (
@@ -547,7 +541,7 @@ const Reports = () => {
 
       {activeTab === 'TRENDS' ? (
         <div className="card">
-          <h3>Tickets Over Time</h3>
+          <h3>Tickets over time</h3>
           <p style={{ color: 'var(--text-secondary)', marginTop: '6px' }}>Ticket creation volume for the selected filters.</p>
 
           {ticketsOverTime.length === 0 ? <p style={{ marginTop: '16px' }}>No trend data for current filters.</p> : null}
@@ -578,62 +572,62 @@ const Reports = () => {
       {activeTab === 'SLA' ? (
         <div className="card-grid cols-2">
           <div className="card">
-            <h3>Operational Metrics</h3>
+            <h2 className="side-title">Response times</h2>
             <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
               <div className="ticket-field-row">
-                <span>Avg First Response Time</span>
-                <strong>{formatHours(operationalMetrics.first_response_hours_avg)}</strong>
+                <span>Average first response</span>
+                <strong>{formatDuration(operationalMetrics.first_response_hours_avg)}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>Avg Resolution Time</span>
-                <strong>{formatHours(operationalMetrics.resolution_hours_avg)}</strong>
+                <span>Average time to resolve</span>
+                <strong>{formatDuration(operationalMetrics.resolution_hours_avg)}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>Avg Backlog Age (Open/In Progress)</span>
-                <strong>{formatHours(operationalMetrics.backlog_age_hours_avg)}</strong>
+                <span>Average age of open tickets</span>
+                <strong>{formatDuration(operationalMetrics.backlog_age_hours_avg)}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>Reopened Tickets</span>
+                <span>Reopened tickets</span>
                 <strong>{operationalMetrics.reopened_tickets}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>Reopened Rate</span>
+                <span>Reopened rate</span>
                 <strong>{formatPct(operationalMetrics.reopened_rate_pct)}</strong>
               </div>
             </div>
           </div>
 
           <div className="card">
-            <h3>SLA Performance</h3>
+            <h2 className="side-title">SLA performance</h2>
             <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
               <div className="ticket-field-row">
-                <span>SLA Eligible Tickets</span>
+                <span>Tickets with an SLA target</span>
                 <strong>{operationalMetrics.sla_eligible_tickets}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>SLA Breached Tickets</span>
-                <strong>{operationalMetrics.sla_breached_tickets}</strong>
+                <span>Missed the target</span>
+                <strong className={operationalMetrics.sla_breached_tickets > 0 ? 'metric-alert' : undefined}>{operationalMetrics.sla_breached_tickets}</strong>
               </div>
               <div className="ticket-field-row">
-                <span>SLA Breach Rate</span>
-                <strong>{formatPct(operationalMetrics.sla_breach_rate_pct)}</strong>
+                <span>Missed rate</span>
+                <strong className={operationalMetrics.sla_breach_rate_pct > 0 ? 'metric-alert' : undefined}>{formatPct(operationalMetrics.sla_breach_rate_pct)}</strong>
               </div>
             </div>
 
-            <h4 style={{ marginTop: '18px', marginBottom: '8px' }}>SLA Targets (Hours)</h4>
+            <h3 className="label-caption" style={{ margin: '20px 0 6px' }}>Targets by priority</h3>
             <div className="table-responsive">
               <table>
                 <thead>
                   <tr>
                     <th>Priority</th>
-                    <th>Target Hours</th>
+                    <th>Target</th>
                   </tr>
                 </thead>
                 <tbody>
                   {['HIGH', 'MEDIUM', 'LOW'].map((priority) => (
                     <tr key={priority}>
                       <td>{priorityLabel(priority)}</td>
-                      <td>{slaThresholdHours[priority]}</td>
+                      <td>{slaThresholdHours[priority]} h</td>
                     </tr>
                   ))}
                 </tbody>

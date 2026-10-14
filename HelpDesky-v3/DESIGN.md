@@ -391,7 +391,7 @@ Corners follow macOS's nested scale: 6px for sidebar rows and selected segments,
 - **Don't** add a bespoke brand typeface or accent colour. The system font and the system palette are the identity.
 
 ### Known gaps (not rules)
-- Admin **Ticket Settings** (`TicketMetaAdmin.jsx`) and **Reports** (`Reports.jsx`) inherit the tokens through the generic card, form-group, button and table rules, with no bespoke macOS treatment. Reports still uses `--bar-track`, which exists only in legacy `:root` (#ebecf0), and its PDF export hard-codes the old navy and grey print styles.
-- **Avatars** are pastel circles that still use the six legacy wash/ink pairs hard-coded in `Avatar.jsx` (for example #deebff / #0747a6), not the macOS status palette.
-- **Legacy `:root` tokens** (#0052cc primary, #172b4d text, #f4f5f7 ground and the old status inks) remain under the scoped overrides, and so do base rules with 3px and 6px corners and uppercase captions that the macOS section overrides. They are not the system.
+- **Reports** now uses the macOS segmented control, the dashboard stat tiles, human durations ("5 min", "2.6 h", "218 days") and a print style in the system colours. Reports filters and **Ticket Settings** use the shared `.form-group` treatment: 13px secondary labels, 36px controls and pop-up selects with the double chevron. Ticket Settings has no further bespoke layout.
+- **Avatars** are a neutral grey gradient (#6e6e73 to #545458) with white initials, the same for everyone, so they never compete with status colour.
+- **Legacy `:root` tokens** (#0052cc primary, #172b4d text, #f4f5f7 ground) still sit under the scoped macOS overrides. The 2026-10 polish removed 53 dead legacy rules and the unused `App.css`, but some base rules with 3px corners remain underneath. They are not the system.
 - **Portal tone rules** (`--tone-rule` #b3d4ff, #c0b6f2, #abf5d1) and the confirmation band's #b3d4ff border are legacy hues that the macOS section has not retuned. They still draw the status band's divider.
