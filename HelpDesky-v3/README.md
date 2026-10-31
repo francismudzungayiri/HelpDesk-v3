@@ -97,6 +97,7 @@ node create_user.js <username> <password> <role> <full name>
 - Ticket activity history
 - Shared ticket comments (admin/agent/end user)
 - Internal notes/work log
+- In-app notifications (new tickets, assignments, comments)
 - Admin dashboard and reports
 - Staff and end-user management (admin)
 

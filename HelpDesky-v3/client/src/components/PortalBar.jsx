@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { FiLogOut } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { BrandBlock } from './AuthCard';
+import NotificationBell from './NotificationBell';
 
 const PortalBar = () => {
   const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ const PortalBar = () => {
 
         <nav className="portal-bar-nav" aria-label="Main">
           <NavLink to="/portal" end className="portal-bar-link">My tickets</NavLink>
+          <NotificationBell />
           <NavLink to="/profile" className="portal-bar-link portal-bar-person" aria-label={`Your profile (${displayName})`}>
             <span className="portal-bar-name">{displayName}</span>
             <span className="portal-bar-name-short" aria-hidden="true">Profile</span>

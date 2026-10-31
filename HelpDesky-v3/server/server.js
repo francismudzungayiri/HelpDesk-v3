@@ -50,6 +50,7 @@ const userRoutes = require("./routes/users");
 const statsRoutes = require("./routes/stats");
 const ticketMetaRoutes = require("./routes/ticketMeta");
 const eventsRoutes = require("./routes/events");
+const notificationRoutes = require("./routes/notifications");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tickets", ticketRoutes);
@@ -57,6 +58,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/ticket-meta", ticketMetaRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("HelpDesky API v1.0 is running");

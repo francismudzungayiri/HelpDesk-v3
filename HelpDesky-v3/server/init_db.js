@@ -327,6 +327,19 @@ async function initTables() {
         )
       `);
 
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+          type VARCHAR(30) NOT NULL CHECK(type IN ('TICKET_CREATED', 'TICKET_ASSIGNED', 'COMMENT_ADDED')),
+          title TEXT NOT NULL,
+          body TEXT NOT NULL DEFAULT '',
+          read_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_tickets_assignee_id ON tickets(assignee_id)');
@@ -337,6 +350,8 @@ async function initTables() {
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_notes_ticket_id ON ticket_notes(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket_id ON ticket_comments(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_history_ticket_id ON ticket_history(ticket_id)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, ticket_id) WHERE read_at IS NULL');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_ticket_id ON ticket_custom_field_values(ticket_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_values_field_id ON ticket_custom_field_values(field_definition_id)');
       await client.query('CREATE INDEX IF NOT EXISTS idx_ticket_custom_def_category_id ON ticket_custom_field_definitions(category_id)');

@@ -3,6 +3,7 @@ const { z } = require('zod');
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { publish } = require('../realtime');
+const { notifyTicketCreated, notifyTicketAssigned, notifyCommentAdded } = require('../notifications');
 
 const router = express.Router();
 const getZodMessages = (err) => (err.issues || err.errors || []).map((e) => e.message);
@@ -65,7 +66,7 @@ const canAccessTicket = (user, ticket) => {
 };
 
 const getTicketAccessRow = async (ticketId) => {
-  const result = await pool.query('SELECT id, created_by FROM tickets WHERE id = $1', [ticketId]);
+  const result = await pool.query('SELECT id, created_by, assignee_id FROM tickets WHERE id = $1', [ticketId]);
   return result.rows[0] || null;
 };
 
@@ -530,6 +531,13 @@ router.post('/', authenticateToken, async (req, res) => {
       actor_id: req.user.id
     });
 
+    await notifyTicketCreated({
+      ticketId,
+      actorId: req.user.id,
+      callerName: payload.caller_name,
+      description: payload.description
+    });
+
     res.status(201).json({
       id: ticketId,
       message: 'Ticket created',
@@ -653,6 +661,10 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       ticket_id: Number(ticketId),
       actor_id: req.user.id
     });
+
+    if (historyLogs.some((log) => log.action === 'ASSIGNEE_CHANGE')) {
+      await notifyTicketAssigned({ ticketId: Number(ticketId), actorId: req.user.id, assigneeId: assignee_id });
+    }
 
     res.json({ message: 'Ticket updated' });
   } catch (err) {
@@ -809,6 +821,8 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
       comment_id: result.rows[0].id,
       actor_id: req.user.id
     });
+
+    await notifyCommentAdded({ ticket, ticketId: Number(id), actorId: req.user.id, comment });
 
     res.status(201).json(commentWithUser);
   } catch (err) {

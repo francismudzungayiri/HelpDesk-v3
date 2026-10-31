@@ -4786,3 +4786,240 @@ a.board-row:hover .board-title {
 .portal-shell .form-group input:not([type="checkbox"]):not([type="radio"]) {
   min-height: 36px;
 }
+
+/* Notifications */
+
+.app-shell .sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-brand-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.notification-bell:hover,
+.notification-bell[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.notification-bell:focus-visible,
+.notification-mark-all:focus-visible,
+.notification-item:focus-visible,
+.notification-toast:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+.notification-panel {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--white);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.16);
+  color: var(--text-main);
+  font-family: var(--font);
+}
+
+.notification-panel:focus {
+  outline: none;
+}
+
+.notification-panel-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.notification-panel-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.notification-mark-all {
+  min-height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.notification-mark-all:hover {
+  background: var(--primary-wash);
+}
+
+.notification-list {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.notification-list > li + li {
+  border-top: 1px solid var(--separator);
+}
+
+.notification-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px 12px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background: var(--row-hover);
+}
+
+.notification-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.notification-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+}
+
+.notification-item.is-unread .notification-dot {
+  background: var(--primary);
+}
+
+.notification-text,
+.notification-toast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notification-title {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.notification-item.is-unread .notification-title,
+.notification-toast .notification-title {
+  font-weight: 600;
+}
+
+.notification-body {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.notification-time {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.notification-empty {
+  padding: 32px 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.notification-empty p {
+  margin: 0 0 4px;
+}
+
+.notification-empty-title {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.notification-toast {
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .notification-bell {
+    width: 40px;
+    height: 40px;
+  }
+
+  .notification-item {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+}
+
+/* The bell leaves no room for the full wordmark on a phone; the logo still links home. */
+@media (max-width: 420px) {
+  .portal-bar .app-name {
+    display: none;
+  }
+}

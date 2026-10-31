@@ -8,6 +8,7 @@ import { roleLabel } from '../utils/labels';
 import { errorMessage } from '../utils/errors';
 import Avatar from './Avatar';
 import { BrandBlock } from './AuthCard';
+import NotificationBell from './NotificationBell';
 
 const NavBar = () => {
   const { user, logout, workStatus, updateWorkStatus } = useAuth();
@@ -59,15 +60,18 @@ const NavBar = () => {
         <Link to="/" onClick={closeMobileMenu} className="rail-brand" aria-label="HelpDesky, go to tickets">
           <BrandBlock size="sidebar" />
         </Link>
-        <button
-          type="button"
-          className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          aria-expanded={mobileMenuOpen}
-          aria-controls="rail-body"
-        >
-          {mobileMenuOpen ? 'Close' : 'Menu'}
-        </button>
+        <div className="sidebar-brand-actions">
+          <NotificationBell />
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="rail-body"
+          >
+            {mobileMenuOpen ? 'Close' : 'Menu'}
+          </button>
+        </div>
       </div>
 
       <div className="sidebar-body" id="rail-body">
